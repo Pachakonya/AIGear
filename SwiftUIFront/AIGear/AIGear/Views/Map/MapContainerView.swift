@@ -6,7 +6,8 @@ struct MapContainerView: View {
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
             MapboxOutdoorMapView(viewModel: viewModel)
-
+                .edgesIgnoringSafeArea(.top)
+            
             Button(action: {
                 if let coordinate = viewModel.userLocation?.coordinate {
                     NotificationCenter.default.post(name: .centerMapExternally, object: coordinate)
