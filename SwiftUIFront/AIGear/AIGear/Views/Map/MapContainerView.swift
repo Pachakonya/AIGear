@@ -25,10 +25,8 @@ struct MapContainerView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                         .shadow(radius: 4)
                 }
-                .padding(8)
-//                .padding(.bottom, 16)
-//                .padding(.trailing, 20)
-                
+                .padding(.trailing, 16)
+
                 // 🔍 Search Bar
                 HStack {
                     TextField("Search hike route", text: $searchQuery, onCommit: {
@@ -37,28 +35,33 @@ struct MapContainerView: View {
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                     .padding(8)
                     .background(Color(.systemBackground))
+                    .cornerRadius(10)
                     .shadow(radius: 3)
-
-//                    Button(action: {
-//                        performSearch(query: searchQuery)
-//                    }) {
-//                        Image(systemName: "magnifyingglass")
-//                            .foregroundColor(.black)
-//                    }
                 }
+                .padding([.horizontal, .bottom], 16)
             }
         }
     }
 
-    // 🍏 Simple MapKit Search
     private func performSearch(query: String) {
+        guard let userCoordinate = viewModel.userLocation?.coordinate else { return }
+
         let request = MKLocalSearch.Request()
         request.naturalLanguageQuery = query
+        request.region = MKCoordinateRegion(center: userCoordinate,
+                                            latitudinalMeters: 100_000,
+                                            longitudinalMeters: 100_000)
 
-        let search = MKLocalSearch(request: request)
-        search.start { response, error in
-            guard let coordinate = response?.mapItems.first?.placemark.coordinate else { return }
-            NotificationCenter.default.post(name: .centerMapExternally, object: coordinate)
+        MKLocalSearch(request: request).start { response, error in
+            guard let destination = response?.mapItems.first?.placemark.coordinate else { return }
+
+            RouteService().fetchRoute(from: userCoordinate, to: destination) { route in
+                guard let route = route else { return }
+
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(name: .drawRouteExternally, object: route)
+                }
+            }
         }
     }
 }

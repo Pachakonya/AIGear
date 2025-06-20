@@ -5,6 +5,7 @@ import CoreLocation
 
 extension Notification.Name {
     static let centerMapExternally = Notification.Name("centerMapExternally")
+    static let drawRouteExternally = Notification.Name("drawRouteExternally")
 }
 
 struct MapboxOutdoorMapView: UIViewRepresentable {
@@ -17,11 +18,18 @@ struct MapboxOutdoorMapView: UIViewRepresentable {
         override init() {
             super.init()
             NotificationCenter.default.addObserver(self, selector: #selector(centerMapNotification(_:)), name: .centerMapExternally, object: nil)
+            NotificationCenter.default.addObserver(self, selector: #selector(drawRouteNotification(_:)), name: .drawRouteExternally, object: nil)
         }
 
         @objc private func centerMapNotification(_ notification: Notification) {
             guard let coordinate = notification.object as? CLLocationCoordinate2D else { return }
             centerMap(on: coordinate)
+        }
+
+        @objc private func drawRouteNotification(_ notification: Notification) {
+            guard let route = notification.object as? Route,
+                  let mapView = mapView else { return }
+            drawRoute(route: route, on: mapView)
         }
 
         @objc func mapTapped(_ sender: UITapGestureRecognizer) {
@@ -50,20 +58,31 @@ struct MapboxOutdoorMapView: UIViewRepresentable {
             let coordinates = shape.coordinates
 
             polylineManager?.annotations.removeAll()
-            var polyline = PolylineAnnotation(lineCoordinates: coordinates)
-            polyline.lineWidth = 4
-            polyline.lineColor = StyleColor(UIColor.systemBlue)
-            polylineManager?.annotations = [polyline]
 
+            // Optional: Animate camera first to the route path smoothly
             let camera = mapView.mapboxMap.camera(
                 for: coordinates,
                 padding: .init(top: 60, left: 40, bottom: 60, right: 40),
                 bearing: 0,
                 pitch: 0
             )
-            mapView.mapboxMap.setCamera(to: camera)
-        }
 
+            // Smooth camera transition
+            mapView.camera.ease(
+                to: camera,
+                duration: 1.3,  // Slower animation for smoother feel
+                curve: .easeInOut
+            )
+
+            // Delay drawing until camera settles (optional)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                var polyline = PolylineAnnotation(lineCoordinates: coordinates)
+                polyline.lineWidth = 4
+                polyline.lineColor = StyleColor(UIColor.systemBlue)
+                self.polylineManager?.annotations = [polyline]
+            }
+        }
+        
         func centerMap(on coordinate: CLLocationCoordinate2D) {
             mapView?.camera.ease(to: CameraOptions(center: coordinate, zoom: 13), duration: 1.5)
         }
