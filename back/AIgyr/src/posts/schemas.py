@@ -1,17 +1,10 @@
 from pydantic import BaseModel
 from datetime import datetime
 
-class PostCreate(BaseModel):
-    title: str
-    content: str
-    author: str | None = None
+class GearRequest(BaseModel):
+    weather: str
+    trail_condition: str
 
-class PostOut(PostCreate):
-    id: int
-    created_at: datetime
+class GearResponse(BaseModel):
+    recommendations: list[str]
 
-    class Config:
-        orm_mode = True
-        
-class PostUpdate(PostCreate):
-    pass

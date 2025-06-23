@@ -2,12 +2,21 @@ from fastapi import FastAPI, Body
 from src.posts.router import router as post_router
 from src.database import Base, engine
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 
 from celery_app import create_task
 
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # For testing, use wildcard. Later, restrict to iOS domain.
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.post('/ex1')
 def run_tasks(data=Body(...)):
