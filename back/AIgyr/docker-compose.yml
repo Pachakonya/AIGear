@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: woow
+      POSTGRES_DB: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  web:
+    build: .
+    command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - .env
+    depends_on:
+      - db
+
+  redis: 
+    container_name: redis
+    image: redis:latest
+
+  celery-worker:
+    container_name: celery-worker
+    build: .
+    command: celery -A celery_app:app worker --loglevel=info
+    volumes:
+      - .:/app
+    depends_on:
+      - redis
+      - web
+    environment:
+      - .env
+
+  flower:
+    container_name: flower
+    build: .
+    command: celery -A celery_app:app flower --port=5555
+    ports:
+      - "5555:5555"
+    depends_on:
+      - redis
+      - web
+      - celery-worker
+    environment:
+      - .env
+
+volumes:
+  postgres_data: 
