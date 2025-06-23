@@ -7,13 +7,11 @@ final class RouteService {
 
     func fetchRoute(from origin: CLLocationCoordinate2D,
                     to destination: CLLocationCoordinate2D,
-                    completion: @escaping (Route?) -> Void) {
+                    completion: @escaping (Route?, [TrailCondition]) -> Void) {
 
-        // Define waypoints (without using targetCoordinate to avoid Navigation SDK dependency)
         let originWaypoint = Waypoint(coordinate: origin, name: "Start")
         let destinationWaypoint = Waypoint(coordinate: destination, name: "End")
 
-        // Use basic RouteOptions instead of NavigationRouteOptions
         let options = RouteOptions(waypoints: [originWaypoint, destinationWaypoint], profileIdentifier: .walking)
         options.includesSteps = true
 
@@ -21,13 +19,17 @@ final class RouteService {
             switch result {
             case .failure(let error):
                 print("❌ Route error: \(error)")
-                completion(nil)
+                completion(nil, [])
             case .success(let response):
-                guard let route = response.routes?.first else {
-                    completion(nil)
+                guard let route = response.routes?.first,
+                      let coordinates = route.shape?.coordinates else {
+                    completion(nil, [])
                     return
                 }
-                completion(route)
+
+                OverpassService.shared.fetchTrailCondition(around: coordinates) { conditions in
+                    completion(route, conditions)
+                }
             }
         }
     }

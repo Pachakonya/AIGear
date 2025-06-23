@@ -43,8 +43,16 @@ struct MapboxOutdoorMapView: UIViewRepresentable {
                 return
             }
 
-            RouteService().fetchRoute(from: origin, to: destination) { route in
+            RouteService().fetchRoute(from: origin, to: destination) { route, conditions in
                 guard let route = route else { return }
+                
+                if !conditions.isEmpty {
+                    for (i, c) in conditions.enumerated() {
+                        print("✅ Condition \(i + 1): surface=\(c.surface ?? "nil"), sac=\(c.sacScale ?? "nil"), visibility=\(c.trailVisibility ?? "nil")")
+                    }
+                } else {
+                    print("❌ No trail conditions found.")
+                }
 
                 DispatchQueue.main.async { [weak self] in
                     guard let self = self else { return }
