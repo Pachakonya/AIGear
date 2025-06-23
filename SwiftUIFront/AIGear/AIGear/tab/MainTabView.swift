@@ -13,9 +13,9 @@ struct MainTabView: View {
                     Label("Map", systemImage: "map")
                 }
 
-            ProfileView()
+            GearView()
                 .tabItem {
-                    Label("Profile", systemImage: "person")
+                    Label("Gear", systemImage: "person")
                 }
         }
     }

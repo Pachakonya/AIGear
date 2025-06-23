@@ -48,7 +48,17 @@ struct MapboxOutdoorMapView: UIViewRepresentable {
                 
                 if !conditions.isEmpty {
                     for (i, c) in conditions.enumerated() {
-                        print("✅ Condition \(i + 1): surface=\(c.surface ?? "nil"), sac=\(c.sacScale ?? "nil"), visibility=\(c.trailVisibility ?? "nil")")
+                        print("""
+                        ✅ Condition \(i + 1):
+                          surface=\(c.surface ?? "nil"),
+                          sac=\(c.sacScale ?? "nil"),
+                          visibility=\(c.trailVisibility ?? "nil"),
+                          incline=\(c.incline ?? "nil"),
+                          smoothness=\(c.smoothness ?? "nil"),
+                          bridge=\(c.bridge ?? "nil"),
+                          tunnel=\(c.tunnel ?? "nil"),
+                          ford=\(c.ford ?? "nil")
+                        """)
                     }
                 } else {
                     print("❌ No trail conditions found.")
