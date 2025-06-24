@@ -10,6 +10,7 @@ extension Notification.Name {
 
 struct MapboxOutdoorMapView: UIViewRepresentable {
     @ObservedObject var viewModel: MapViewModel
+    @Binding var is3D: Bool
 
     class Coordinator: NSObject {
         var mapView: MapView?
@@ -80,7 +81,7 @@ struct MapboxOutdoorMapView: UIViewRepresentable {
             // Optional: Animate camera first to the route path smoothly
             let camera = mapView.mapboxMap.camera(
                 for: coordinates,
-                padding: .init(top: 60, left: 40, bottom: 60, right: 40),
+                padding: .init(top: 150, left: 80, bottom: 150, right: 80),
                 bearing: 0,
                 pitch: 0
             )
@@ -112,7 +113,7 @@ struct MapboxOutdoorMapView: UIViewRepresentable {
 
     func makeUIView(context: Context) -> MapView {
         let resourceOptions = ResourceOptions(accessToken: Bundle.main.object(forInfoDictionaryKey: "MBXAccessToken") as! String)
-        let mapInitOptions = MapInitOptions(resourceOptions: resourceOptions, styleURI: .outdoors)
+        let mapInitOptions = MapInitOptions(resourceOptions: resourceOptions, styleURI: .satellite)
 
         let mapView = MapView(frame: .zero, mapInitOptions: mapInitOptions)
         context.coordinator.mapView = mapView
@@ -124,12 +125,47 @@ struct MapboxOutdoorMapView: UIViewRepresentable {
         mapView.location.options.puckType = .puck2D()
         mapView.location.options.puckBearingEnabled = true
         mapView.location.options.activityType = .fitness
-
+       
         return mapView
     }
 
     func updateUIView(_ uiView: MapView, context: Context) {
-        // No automatic centering to allow manual control via button
+        let desiredStyle: StyleURI = is3D ? .satelliteStreets : .outdoors
+        let currentStyle = uiView.mapboxMap.style.uri
+
+            // Switch style if needed
+        if currentStyle != desiredStyle {
+            uiView.mapboxMap.loadStyleURI(desiredStyle)
+
+            uiView.mapboxMap.onNext(event: .styleLoaded) { _ in
+
+                let sourceDict: [String: Any] = [
+                    "type": "raster-dem",
+                    "url": "mapbox://mapbox.terrain-rgb",
+                    "tileSize": 512
+                ]
+                try? uiView.mapboxMap.style.addSource(withId: "mapbox-dem", properties: sourceDict)
+
+                let terrain = Terrain(sourceId: "mapbox-dem")
+                try? uiView.mapboxMap.style.setTerrain(terrain)
+
+                // Optional: Sky layer
+//              var skyLayer = SkyLayer(id: "sky-layer")
+//              skyLayer.paint?.skyType = .atmosphere
+//              try? uiView.mapboxMap.style.addLayer(skyLayer)
+            }
+        }
+
+            // Set camera pitch
+        let pitch: CGFloat = is3D ? 65.0 : 0.0
+        let currentCamera = uiView.mapboxMap.cameraState
+        let updatedCamera = CameraOptions(
+            center: currentCamera.center,
+            zoom: currentCamera.zoom,
+            bearing: currentCamera.bearing,
+            pitch: pitch
+        )
+        uiView.mapboxMap.setCamera(to: updatedCamera)
     }
 }
 

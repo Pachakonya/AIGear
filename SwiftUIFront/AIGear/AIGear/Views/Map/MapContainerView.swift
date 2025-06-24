@@ -4,10 +4,11 @@ import MapKit
 struct MapContainerView: View {
     @StateObject private var viewModel = MapViewModel()
     @State private var searchQuery = ""
+    @State private var is3D = false
 
     var body: some View {
         ZStack(alignment: .top) {
-            MapboxOutdoorMapView(viewModel: viewModel)
+            MapboxOutdoorMapView(viewModel: viewModel, is3D: $is3D)
                 .edgesIgnoringSafeArea(.all)
             
             LinearGradient(
@@ -63,6 +64,23 @@ struct MapContainerView: View {
                 .padding(.horizontal)
                 
                 Spacer()
+                
+                HStack {
+                    Spacer()
+                    Button(action: {
+                        is3D.toggle()
+                    }) {
+                        Image(systemName: is3D ? "view.2d" : "view.3d")
+                            .font(.system(size: 20, weight: .medium))
+                            .foregroundColor(.black)
+                            .padding(14)
+                            .background(.ultraThinMaterial)
+                            .clipShape(Circle())
+                            .shadow(radius: 4)
+                    }
+                    .padding(.trailing, 16)
+                    .padding(.bottom, 4)
+                }
                 
                 // 📍 Location Button
                 HStack {
