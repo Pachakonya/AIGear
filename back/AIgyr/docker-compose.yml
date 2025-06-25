@@ -25,6 +25,16 @@ services:
     depends_on:
       - db
 
+  alembic:
+    build: .
+    command: alembic upgrade head
+    volumes:
+      - .:/app
+    environment:
+      - .env
+    depends_on:
+      - db
+
   redis: 
     container_name: redis
     image: redis:latest
