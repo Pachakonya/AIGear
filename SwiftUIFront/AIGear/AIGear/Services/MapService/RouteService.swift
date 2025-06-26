@@ -5,10 +5,11 @@ import CoreLocation
 final class RouteService {
     private let directions = Directions.shared
 
-    func fetchRoute(from origin: CLLocationCoordinate2D,
-                    to destination: CLLocationCoordinate2D,
-                    completion: @escaping (Route?, [TrailCondition]) -> Void) {
-
+    func fetchRoute(
+        from origin: CLLocationCoordinate2D,
+        to destination: CLLocationCoordinate2D,
+        completion: @escaping (Route?, [TrailCondition]) -> Void
+    ) {
         let originWaypoint = Waypoint(coordinate: origin, name: "Start")
         let destinationWaypoint = Waypoint(coordinate: destination, name: "End")
 
@@ -28,6 +29,28 @@ final class RouteService {
                 }
 
                 OverpassService.shared.fetchTrailCondition(around: coordinates) { conditions in
+
+                    // 🚀 Upload starts here after fetching route + trail condition
+                    let distance = route.distance
+                    let surfaces = conditions.compactMap { $0.surface }.uniqued()
+
+                    ElevationService.shared.calculateElevationGain(for: coordinates) { elevationGain in
+                        NetworkService.shared.uploadTrailData(
+                            coordinates: coordinates,
+                            distance: distance,
+                            trailConditions: surfaces,
+                            elevationGain: elevationGain
+                        ) { result in
+                            switch result {
+                            case .success(let message):
+                                print(message)
+                            case .failure(let error):
+                                print("❌ Upload failed: \(error)")
+                            }
+                        }
+                    }
+
+                    // ✅ Return the route and conditions to the caller
                     completion(route, conditions)
                 }
             }

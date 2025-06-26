@@ -1,14 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException
-from src.posts.schemas import GearRequest, GearResponse 
-# from sqlalchemy.orm import Session
-# from src.posts import schemas, models
-# from src.posts.dependencies import get_db
+from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel
+from typing import List
+from sqlalchemy.orm import Session
+from src.database import get_db
+from src.posts.models import TrailData  # Assuming you have this in models.py
+
+from src.posts.schemas import GearRequest, GearResponse
 
 router = APIRouter(prefix="/gear", tags=["Gear"])
 
+# 🚀 Existing recommend endpoint
 @router.post("/recommend", response_model=GearResponse)
 def recommend_gear(request: GearRequest):
-    # dummy logic (you can replace this later with AI-based or rules-based)
     recs = []
 
     if request.weather == "rainy":
@@ -18,45 +21,36 @@ def recommend_gear(request: GearRequest):
 
     return {"recommendations": recs}
 
-# # Create
-# @router.post("/", response_model=schemas.PostOut)
-# def create_post(post: schemas.PostCreate, db: Session = Depends(get_db)):
-#     db_post = models.Post(**post.dict())
-#     db.add(db_post)
-#     db.commit()
-#     db.refresh(db_post)
-#     return db_post
 
-# # Read All
-# @router.get("/", response_model=list[schemas.PostOut])
-# def read_posts(db: Session = Depends(get_db)):
-#     return db.query(models.Post).all()
+# 🚀 New upload endpoint with inline CRUD
+class TrailUploadRequest(BaseModel):
+    coordinates: List[List[float]]
+    distance_meters: float
+    elevation_gain_meters: float
+    trail_conditions: List[str]
 
-# # Read One
-# @router.get("/{post_id}", response_model=schemas.PostOut)
-# def read_post(post_id: int, db: Session = Depends(get_db)):
-#     post = db.query(models.Post).filter(models.Post.id == post_id).first()
-#     if not post:
-#         raise HTTPException(status_code=404, detail="Post not found")
-#     return post
+class UploadResponse(BaseModel):
+    message: str
+    trail_id: int
 
-# # Update
-# @router.put("/{post_id}", response_model=schemas.PostOut)
-# def update_post(post_id: int, updated: schemas.PostUpdate, db: Session = Depends(get_db)):
-#     post = db.query(models.Post).filter(models.Post.id == post_id).first()
-#     if not post:
-#         raise HTTPException(status_code=404, detail="Post not found")
-#     for key, value in updated.dict().items():
-#         setattr(post, key, value)
-#     db.commit()
-#     return post
 
-# # Delete
-# @router.delete("/{post_id}")
-# def delete_post(post_id: int, db: Session = Depends(get_db)):
-#     post = db.query(models.Post).filter(models.Post.id == post_id).first()
-#     if not post:
-#         raise HTTPException(status_code=404, detail="Post not found")
-#     db.delete(post)
-#     db.commit()
-#     return {"message": "Post deleted"}
+@router.post("/upload", response_model=UploadResponse)
+def upload_trail_data(
+    request: TrailUploadRequest,
+    db: Session = Depends(get_db)
+):
+    try:
+        trail = TrailData(
+            coordinates=request.coordinates,
+            distance_meters=request.distance_meters,
+            elevation_gain_meters=request.elevation_gain_meters,
+            trail_conditions=request.trail_conditions
+        )
+        db.add(trail)
+        db.commit()
+        db.refresh(trail)
+
+        return {"message": "Trail data uploaded successfully", "trail_id": trail.id}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

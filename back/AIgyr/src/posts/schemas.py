@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from datetime import datetime
+from typing import List
 
 class GearRequest(BaseModel):
     weather: str
@@ -8,3 +8,12 @@ class GearRequest(BaseModel):
 class GearResponse(BaseModel):
     recommendations: list[str]
 
+class TrailUploadRequest(BaseModel):
+    coordinates: List[List[float]]
+    distance_meters: float
+    elevation_gain_meters: float
+    trail_conditions: List[str]
+
+class UploadResponse(BaseModel):
+    message: str
+    trail_id: int
