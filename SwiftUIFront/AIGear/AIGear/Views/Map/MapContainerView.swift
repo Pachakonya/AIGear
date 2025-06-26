@@ -5,11 +5,21 @@ struct MapContainerView: View {
     @StateObject private var viewModel = MapViewModel()
     @State private var searchQuery = ""
     @State private var is3D = false
-
+    @State private var showSuggestions = false
+    
+    let suggestions = [
+        "LGA Airport",
+        "John F. Kennedy Int'l Airport",
+        "Home",
+        "The Times Square Edition",
+        "Manhattan Club",
+        "Mean Fiddler"
+    ]
+    
     var body: some View {
         ZStack(alignment: .top) {
             MapboxOutdoorMapView(viewModel: viewModel, is3D: $is3D)
-                .edgesIgnoringSafeArea(.all)
+                .edgesIgnoringSafeArea(.top)
             
             LinearGradient(
                 gradient: Gradient(colors: [Color.white.opacity(0.75), Color.clear]),
@@ -73,10 +83,11 @@ struct MapContainerView: View {
                         Image(systemName: is3D ? "view.2d" : "view.3d")
                             .font(.system(size: 20, weight: .medium))
                             .foregroundColor(.black)
+                            .frame(width: 28, height: 24)
                             .padding(14)
                             .background(.ultraThinMaterial)
                             .clipShape(Circle())
-                            .shadow(radius: 4)
+                            .shadow(radius: 2)
                     }
                     .padding(.trailing, 16)
                     .padding(.bottom, 4)
@@ -93,29 +104,87 @@ struct MapContainerView: View {
                         Image(systemName: "location.fill")
                             .font(.system(size: 20, weight: .medium))
                             .foregroundColor(.black)
+                            .frame(width: 28, height: 24)
                             .padding(14)
                             .background(.ultraThinMaterial)
                             .clipShape(Circle())
-                            .shadow(radius: 4)
+                            .shadow(radius: 2)
                     }
                     .padding(.trailing, 16)
                     .padding(.bottom, 4)
                 }
-                // 🔍 Search Bar
-                HStack {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundColor(.gray)
-                    TextField("Search for the safe route", text: $searchQuery, onCommit: {
-                        performSearch(query: searchQuery)
-                    })
-                    .foregroundColor(.primary)
-                    .autocapitalization(.none)
+
+                // Bottom Card (Greeting + Search Bar)
+                VStack(spacing: 16) {
+                    Capsule()
+                        .frame(width: 40, height: 5)
+                        .foregroundColor(Color.gray.opacity(0.3))
+                        .padding(.top, 8)
+
+                    HStack {
+                        Text("Hello there, Dastan! 👋")
+                            .font(.title3)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.primary)
+                        Spacer()
+                    }
+                    .padding(.horizontal)
+
+                    // Search Bar inside card
+                    HStack {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(.gray)
+                        TextField("Where are you hiking?", text: $searchQuery, onEditingChanged: { editing in
+                            showSuggestions = editing
+                        }, onCommit: {
+                            performSearch(query: searchQuery)
+                            showSuggestions = false
+                        })
+                        .foregroundColor(.primary)
+                        .autocapitalization(.none)
+                    }
+                    .padding()
+                    .background(Color.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .shadow(radius: 2)
+                    .padding(.horizontal)
+                    .onTapGesture {
+                        showSuggestions = true
+                    }
+
+                    // Destination Suggestions List
+                    if showSuggestions {
+                        LazyVStack(alignment: .leading, spacing: 0) {
+                            ForEach(suggestions, id: \ .self) { suggestion in
+                                Button(action: {
+                                    searchQuery = suggestion
+                                    performSearch(query: suggestion)
+                                    showSuggestions = false
+                                }) {
+                                    HStack {
+                                        Image(systemName: "mappin.and.ellipse")
+                                            .foregroundColor(.blue)
+                                        Text(suggestion)
+                                            .foregroundColor(.primary)
+                                        Spacer()
+                                    }
+                                    .padding(.vertical, 10)
+                                    .padding(.horizontal)
+                                }
+                                Divider()
+                            }
+                        }
+                        .background(Color.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .shadow(radius: 2)
+                        .padding(.horizontal)
+                    }
                 }
-                .padding()
-                .background(.ultraThinMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                .shadow(radius: 5)
-                .padding(.horizontal)
+                .padding(.bottom, 24)
+                .background(
+                    RoundedCorner(radius: 28, corners: [.topLeft, .topRight])
+                        .fill(Color(.systemGray6).opacity(0.95))
+                )
             }
         }
     }
@@ -144,6 +213,18 @@ struct MapContainerView: View {
 }
 
 #Preview {
-    MapContainerView()
+    MainTabView()
 }
+
+// Custom shape for rounding only specific corners
+struct RoundedCorner: Shape {
+    var radius: CGFloat = .infinity
+    var corners: UIRectCorner = .allCorners
+
+    func path(in rect: CGRect) -> Path {
+        let path = UIBezierPath(roundedRect: rect, byRoundingCorners: corners, cornerRadii: CGSize(width: radius, height: radius))
+        return Path(path.cgPath)
+    }
+}
+
 
