@@ -120,16 +120,6 @@ struct MapContainerView: View {
                         .frame(width: 40, height: 5)
                         .foregroundColor(Color.gray.opacity(0.3))
                         .padding(.top, 8)
-
-                    HStack {
-                        Text("Hello there, Dastan! 👋")
-                            .font(.title3)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.primary)
-                        Spacer()
-                    }
-                    .padding(.horizontal)
-
                     // Search Bar inside card
                     HStack {
                         Image(systemName: "magnifyingglass")

@@ -47,23 +47,23 @@ struct MapboxOutdoorMapView: UIViewRepresentable {
             RouteService().fetchRoute(from: origin, to: destination) { route, conditions in
                 guard let route = route else { return }
                 
-                if !conditions.isEmpty {
-                    for (i, c) in conditions.enumerated() {
-                        print("""
-                        ✅ Condition \(i + 1):
-                          surface=\(c.surface ?? "nil"),
-                          sac=\(c.sacScale ?? "nil"),
-                          visibility=\(c.trailVisibility ?? "nil"),
-                          incline=\(c.incline ?? "nil"),
-                          smoothness=\(c.smoothness ?? "nil"),
-                          bridge=\(c.bridge ?? "nil"),
-                          tunnel=\(c.tunnel ?? "nil"),
-                          ford=\(c.ford ?? "nil")
-                        """)
-                    }
-                } else {
-                    print("❌ No trail conditions found.")
-                }
+//                if !conditions.isEmpty {
+//                    for (i, c) in conditions.enumerated() {
+//                        print("""
+//                        ✅ Condition \(i + 1):
+//                          surface=\(c.surface ?? "nil"),
+//                          sac=\(c.sacScale ?? "nil"),
+//                          visibility=\(c.trailVisibility ?? "nil"),
+//                          incline=\(c.incline ?? "nil"),
+//                          smoothness=\(c.smoothness ?? "nil"),
+//                          bridge=\(c.bridge ?? "nil"),
+//                          tunnel=\(c.tunnel ?? "nil"),
+//                          ford=\(c.ford ?? "nil")
+//                        """)
+//                    }
+//                } else {
+//                    print("❌ No trail conditions found.")
+//                }
 
                 DispatchQueue.main.async { [weak self] in
                     guard let self = self else { return }
@@ -71,7 +71,7 @@ struct MapboxOutdoorMapView: UIViewRepresentable {
                 }
             }
         }
-
+        
         func drawRoute(route: Route, on mapView: MapView) {
             guard let shape = route.shape else { return }
             let coordinates = shape.coordinates
@@ -96,7 +96,7 @@ struct MapboxOutdoorMapView: UIViewRepresentable {
             // Delay drawing until camera settles (optional)
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                 var polyline = PolylineAnnotation(lineCoordinates: coordinates)
-                polyline.lineWidth = 4
+                polyline.lineWidth = 3
                 polyline.lineColor = StyleColor(UIColor.systemBlue)
                 self.polylineManager?.annotations = [polyline]
             }
@@ -148,11 +148,6 @@ struct MapboxOutdoorMapView: UIViewRepresentable {
 
                 let terrain = Terrain(sourceId: "mapbox-dem")
                 try? uiView.mapboxMap.style.setTerrain(terrain)
-
-                // Optional: Sky layer
-//              var skyLayer = SkyLayer(id: "sky-layer")
-//              skyLayer.paint?.skyType = .atmosphere
-//              try? uiView.mapboxMap.style.addLayer(skyLayer)
             }
         }
 
