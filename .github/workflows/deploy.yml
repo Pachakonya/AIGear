@@ -2,6 +2,8 @@ name: Deploy to DigitalOcean
 
 on:
   push:
+    paths:
+      - 'back/AIgyr/**'
     branches:
       - main
 
