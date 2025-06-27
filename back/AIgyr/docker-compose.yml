@@ -20,7 +20,7 @@ services:
       - .:/app
     ports:
       - "8000:8000"
-    environment:
+    env_file:
       - .env
     depends_on:
       - db
@@ -30,7 +30,7 @@ services:
     command: alembic upgrade head
     volumes:
       - .:/app
-    environment:
+    env_file:
       - .env
     depends_on:
       - db
@@ -48,7 +48,7 @@ services:
     depends_on:
       - redis
       - web
-    environment:
+    env_file:
       - .env
 
   flower:
@@ -61,7 +61,7 @@ services:
       - redis
       - web
       - celery-worker
-    environment:
+    env_file:
       - .env
 
 volumes:
