@@ -17,3 +17,13 @@ class TrailUploadRequest(BaseModel):
 class UploadResponse(BaseModel):
     message: str
     trail_id: int
+
+class LatestTrailResponse(BaseModel):
+    id: int
+    coordinates: List[List[float]]
+    distance_meters: float
+    elevation_gain_meters: float
+    trail_conditions: List[str]
+
+    class Config:
+        orm_mode = True

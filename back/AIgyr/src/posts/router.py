@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from src.database import get_db
 from src.posts.models import TrailData  # Assuming you have this in models.py
 
-from src.posts.schemas import GearRequest, GearResponse
+from src.posts.schemas import GearRequest, GearResponse, TrailUploadRequest, LatestTrailResponse
 
 router = APIRouter(prefix="/gear", tags=["Gear"])
 
@@ -54,3 +54,10 @@ def upload_trail_data(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/latest", response_model=LatestTrailResponse)
+def get_latest_trail(db: Session = Depends(get_db)):
+    trail = db.query(TrailData).order_by(TrailData.id.desc()).first()
+    if not trail:
+        raise HTTPException(status_code=404, detail="No trail data found")
+    return trail

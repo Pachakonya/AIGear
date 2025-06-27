@@ -47,23 +47,23 @@ struct MapboxOutdoorMapView: UIViewRepresentable {
             RouteService().fetchRoute(from: origin, to: destination) { route, conditions in
                 guard let route = route else { return }
                 
-//                if !conditions.isEmpty {
-//                    for (i, c) in conditions.enumerated() {
-//                        print("""
-//                        ✅ Condition \(i + 1):
-//                          surface=\(c.surface ?? "nil"),
-//                          sac=\(c.sacScale ?? "nil"),
-//                          visibility=\(c.trailVisibility ?? "nil"),
-//                          incline=\(c.incline ?? "nil"),
-//                          smoothness=\(c.smoothness ?? "nil"),
-//                          bridge=\(c.bridge ?? "nil"),
-//                          tunnel=\(c.tunnel ?? "nil"),
-//                          ford=\(c.ford ?? "nil")
-//                        """)
-//                    }
-//                } else {
-//                    print("❌ No trail conditions found.")
-//                }
+                if !conditions.isEmpty {
+                    for (i, c) in conditions.enumerated() {
+                        print("""
+                        ✅ Condition \(i + 1):
+                          surface=\(c.surface ?? "nil"),
+                          sac=\(c.sacScale ?? "nil"),
+                          visibility=\(c.trailVisibility ?? "nil"),
+                          incline=\(c.incline ?? "nil"),
+                          smoothness=\(c.smoothness ?? "nil"),
+                          bridge=\(c.bridge ?? "nil"),
+                          tunnel=\(c.tunnel ?? "nil"),
+                          ford=\(c.ford ?? "nil")
+                        """)
+                    }
+                } else {
+                    print("❌ No trail conditions found.")
+                }
 
                 DispatchQueue.main.async { [weak self] in
                     guard let self = self else { return }

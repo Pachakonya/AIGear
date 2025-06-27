@@ -8,3 +8,4 @@ celery
 redis
 flower
 alembic
+openai

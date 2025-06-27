@@ -3,7 +3,7 @@ import SwiftUI
 struct MainTabView: View {
     var body: some View {
         TabView {
-            HomeView()
+            ChatbotView()
                 .tabItem {
                     Label("Home", systemImage: "house")
                 }
