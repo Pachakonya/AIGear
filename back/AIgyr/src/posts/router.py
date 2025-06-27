@@ -10,16 +10,16 @@ from src.posts.schemas import GearRequest, GearResponse, TrailUploadRequest, Lat
 router = APIRouter(prefix="/gear", tags=["Gear"])
 
 # 🚀 Existing recommend endpoint
-@router.post("/recommend", response_model=GearResponse)
-def recommend_gear(request: GearRequest):
-    recs = []
+# @router.post("/recommend", response_model=GearResponse)
+# def recommend_gear(request: GearRequest):
+#     recs = []
 
-    if request.weather == "rainy":
-        recs.append("Rain Jacket")
-    if request.trail_condition == "rocky":
-        recs.append("Hiking Boots")
+#     if request.weather == "rainy":
+#         recs.append("Rain Jacket")
+#     if request.trail_condition == "rocky":
+#         recs.append("Hiking Boots")
 
-    return {"recommendations": recs}
+#     return {"recommendations": recs}
 
 
 # 🚀 New upload endpoint with inline CRUD

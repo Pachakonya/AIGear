@@ -2,10 +2,10 @@ fastapi
 uvicorn
 python-dotenv
 psycopg2-binary
-sqlalchemy
-pytest
 celery
 redis
 flower
 alembic
 openai
+sqlalchemy
+pytest
