@@ -14,12 +14,11 @@ ENV/
 *.pyo
 *.pyd
 
-# macOS
-.DS_Store
-
 # Logs
 *.log
 
+# macOS
+.DS_Store
 # Environment variables
 .env
 .env.*
