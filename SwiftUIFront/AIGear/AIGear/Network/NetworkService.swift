@@ -24,7 +24,7 @@ struct GearAndHikeResponse: Codable {
 
 class NetworkService {
     static let shared = NetworkService()
-    private let baseURL = "http://139.59.139.152:8000" // ← REPLACE with your IP
+    private let baseURL = "https://api.aigear.tech" // ← REPLACE with your IP
 
     func getGearRecommendation(weather: String, trailCondition: String, completion: @escaping (Result<GearResponse, Error>) -> Void) {
         guard let url = URL(string: "\(baseURL)/gear/recommend") else {

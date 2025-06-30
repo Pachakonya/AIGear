@@ -1,6 +1,33 @@
 {
-  "originHash" : "3a88b801789bdebe832a3bc00fc25bff08077857a0a957c14d3bbed5501ae620",
+  "originHash" : "0c3933ec5d87f27101347e8ea90078db2070b8e9e7b68ccbb20b69ef3c1c950f",
   "pins" : [
+    {
+      "identity" : "clerk-ios",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/clerk/clerk-ios",
+      "state" : {
+        "revision" : "4928f555ce70bdfbe274236fa1be6aeb81be9a88",
+        "version" : "0.58.0"
+      }
+    },
+    {
+      "identity" : "factory",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/hmlongco/Factory",
+      "state" : {
+        "revision" : "ccc898f21992ebc130bc04cc197460a5ae230bcf",
+        "version" : "2.5.3"
+      }
+    },
+    {
+      "identity" : "get",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/kean/Get",
+      "state" : {
+        "revision" : "31249885da1052872e0ac91a2943f62567c0d96d",
+        "version" : "2.2.1"
+      }
+    },
     {
       "identity" : "mapbox-common-ios",
       "kind" : "remoteSourceControl",
@@ -44,6 +71,15 @@
       "state" : {
         "revision" : "353f80378dcd8f17eefe8550090c6b1ae3c9da23",
         "version" : "5.1.0"
+      }
+    },
+    {
+      "identity" : "simplekeychain",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/auth0/SimpleKeychain",
+      "state" : {
+        "revision" : "776c4a6db74d5c6c143974be91c383680d468630",
+        "version" : "1.3.0"
       }
     },
     {

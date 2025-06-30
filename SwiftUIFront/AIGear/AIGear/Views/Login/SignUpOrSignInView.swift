@@ -1,18 +1,24 @@
-//
-//  SignUpOrSignInView.swift
-//  AIGear
-//
-//  Created by Dastan Sugirbay on 30.06.2025.
-//
-
 import SwiftUI
 
 struct SignUpOrSignInView: View {
+    @State private var isSignUp = true
+
     var body: some View {
-        Text(/*@START_MENU_TOKEN@*/"Hello, World!"/*@END_MENU_TOKEN@*/)
+        VStack {
+            if isSignUp {
+                SignUpView()
+            } else {
+                SignInView()
+            }
+
+            Button(action: {
+                isSignUp.toggle()
+            }) {
+                Text(isSignUp ? "Already have an account? Sign In" : "Don't have an account? Sign Up")
+                    .foregroundColor(.blue)
+            }
+            .padding()
+        }
     }
 }
 
-#Preview {
-    SignUpOrSignInView()
-}

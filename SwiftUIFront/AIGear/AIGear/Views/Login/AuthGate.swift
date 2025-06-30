@@ -1,18 +1,15 @@
-//
-//  AuthGate.swift
-//  AIGear
-//
-//  Created by Dastan Sugirbay on 30.06.2025.
-//
-
 import SwiftUI
+import Clerk
 
 struct AuthGate: View {
+    @Environment(Clerk.self) private var clerk
+
     var body: some View {
-        Text(/*@START_MENU_TOKEN@*/"Hello, World!"/*@END_MENU_TOKEN@*/)
+        if clerk.user != nil {
+            MainTabView() // Replace with your main app view
+        } else {
+            SignUpOrSignInView()
+        }
     }
 }
 
-#Preview {
-    AuthGate()
-}

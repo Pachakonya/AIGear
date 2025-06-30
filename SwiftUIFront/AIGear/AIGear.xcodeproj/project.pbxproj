@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		5F1309622E03F00E00582F3B /* MapboxMaps in Frameworks */ = {isa = PBXBuildFile; productRef = 5F1309612E03F00E00582F3B /* MapboxMaps */; };
 		5F1309652E03F2C700582F3B /* MapboxDirections in Frameworks */ = {isa = PBXBuildFile; productRef = 5F1309642E03F2C700582F3B /* MapboxDirections */; };
+		5FEC70532E12AAC000C15BCD /* Clerk in Frameworks */ = {isa = PBXBuildFile; productRef = 5FEC70522E12AAC000C15BCD /* Clerk */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -41,6 +42,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5FEC70532E12AAC000C15BCD /* Clerk in Frameworks */,
 				5F1309622E03F00E00582F3B /* MapboxMaps in Frameworks */,
 				5F1309652E03F2C700582F3B /* MapboxDirections in Frameworks */,
 			);
@@ -79,6 +81,7 @@
 			packageProductDependencies = (
 				5F1309612E03F00E00582F3B /* MapboxMaps */,
 				5F1309642E03F2C700582F3B /* MapboxDirections */,
+				5FEC70522E12AAC000C15BCD /* Clerk */,
 			);
 			productName = AIGear;
 			productReference = 5F9E84422E01925C003E39A4 /* AIGear.app */;
@@ -111,6 +114,7 @@
 			packageReferences = (
 				5F1309602E03F00E00582F3B /* XCRemoteSwiftPackageReference "mapbox-maps-ios" */,
 				5F1309632E03F2C700582F3B /* XCRemoteSwiftPackageReference "mapbox-directions-swift" */,
+				5FEC70512E12AAC000C15BCD /* XCRemoteSwiftPackageReference "clerk-ios" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 5F9E840E2E016F54003E39A4;
@@ -372,6 +376,14 @@
 				minimumVersion = 2.14.0;
 			};
 		};
+		5FEC70512E12AAC000C15BCD /* XCRemoteSwiftPackageReference "clerk-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/clerk/clerk-ios";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.58.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -384,6 +396,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 5F1309632E03F2C700582F3B /* XCRemoteSwiftPackageReference "mapbox-directions-swift" */;
 			productName = MapboxDirections;
+		};
+		5FEC70522E12AAC000C15BCD /* Clerk */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5FEC70512E12AAC000C15BCD /* XCRemoteSwiftPackageReference "clerk-ios" */;
+			productName = Clerk;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

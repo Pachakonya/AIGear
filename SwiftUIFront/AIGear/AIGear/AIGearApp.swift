@@ -1,17 +1,24 @@
-//
-//  AIGearApp.swift
-//  AIGear
-//
-//  Created by Dastan Sugirbay on 17.06.2025.
-//
-
 import SwiftUI
+import Clerk
 
 @main
 struct AIGearApp: App {
+    @State private var clerk = Clerk.shared
+
     var body: some Scene {
         WindowGroup {
-            MainTabView()
+            ZStack {
+                if clerk.isLoaded {
+                    AuthGate()
+                } else {
+                    ProgressView("Loading...")
+                }
+            }
+            .environment(clerk)
+            .task {
+                clerk.configure(publishableKey: "pk_test_c2ltcGxlLWFhcmR2YXJrLTk5LmNsZXJrLmFjY291bnRzLmRldiQ")
+                try? await clerk.load()
+            }
         }
     }
 }
