@@ -27,3 +27,11 @@ jobs:
           docker compose down
           docker compose up -d --build
         EOF
+
+    - name: Debug - Show current directory and git status
+      run: |
+        ssh -o StrictHostKeyChecking=no ${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_IP }} << 'EOF'
+          cd ${{ secrets.DROPLET_PATH }}
+          pwd
+          git status
+        EOF
