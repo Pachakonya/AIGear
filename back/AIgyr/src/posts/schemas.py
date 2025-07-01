@@ -1,12 +1,12 @@
 from pydantic import BaseModel
 from typing import List
 
-class GearRequest(BaseModel):
-    weather: str
-    trail_condition: str
+# class GearRequest(BaseModel):
+#     weather: str
+#     trail_condition: str
 
-class GearResponse(BaseModel):
-    recommendations: list[str]
+# class GearResponse(BaseModel):
+#     recommendations: list[str]
 
 class TrailUploadRequest(BaseModel):
     coordinates: List[List[float]]
