@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from src.database import get_db
 from src.posts.models import TrailData  # Assuming you have this in models.py
 
-from src.posts.schemas import GearRequest, GearResponse, TrailUploadRequest, LatestTrailResponse
+from src.posts.schemas import TrailUploadRequest, LatestTrailResponse
 
 router = APIRouter(prefix="/gear", tags=["Gear"])
 
