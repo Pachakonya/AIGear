@@ -35,9 +35,9 @@ services:
     depends_on:
       - db
 
-  # redis: 
-  #   container_name: redis
-  #   image: redis:latest
+  redis: 
+    container_name: redis
+    image: redis:latest
 
   # celery-worker:
   #   container_name: celery-worker
