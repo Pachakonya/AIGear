@@ -2,8 +2,6 @@ name: Deploy to Droplet
 
 on:
   push:
-    paths:
-      - 'back/AIgyr/**'
     branches:
       - main
 
@@ -24,8 +22,7 @@ jobs:
       run: |
         ssh -o StrictHostKeyChecking=no ${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_IP }} << 'EOF'
           cd ${{ secrets.DROPLET_PATH }}
-          git fetch origin main
-          git reset --hard origin/main
+          git pull origin main
           docker compose down
           docker compose up -d --build
         EOF
