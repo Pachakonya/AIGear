@@ -9,19 +9,6 @@ from src.posts.schemas import TrailUploadRequest, LatestTrailResponse
 
 router = APIRouter(prefix="/gear", tags=["Gear"])
 
-# 🚀 Existing recommend endpoint
-# @router.post("/recommend", response_model=GearResponse)
-# def recommend_gear(request: GearRequest):
-#     recs = []
-
-#     if request.weather == "rainy":
-#         recs.append("Rain Jacket")
-#     if request.trail_condition == "rocky":
-#         recs.append("Hiking Boots")
-
-#     return {"recommendations": recs}
-
-
 # 🚀 New upload endpoint with inline CRUD
 class TrailUploadRequest(BaseModel):
     coordinates: List[List[float]]
