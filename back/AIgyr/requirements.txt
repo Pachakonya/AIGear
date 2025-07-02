@@ -11,3 +11,5 @@ sqlalchemy
 pytest
 python-jose
 passlib[bcrypt]
+email-validator
+pydantic[email]
