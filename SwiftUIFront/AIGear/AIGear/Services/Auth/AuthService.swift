@@ -165,6 +165,28 @@ class AuthService: ObservableObject {
         clearAuth()
     }
     
+    func signInWithGoogle(idToken: String) async {
+        guard let url = URL(string: "\(baseURL)/auth/google") else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let body = ["token": idToken]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+                print("Google sign-in failed")
+                return
+            }
+            let authResponse = try JSONDecoder().decode(AuthResponse.self, from: data)
+            await MainActor.run {
+                self.storeAuth(token: authResponse.access_token, user: authResponse.user)
+            }
+        } catch {
+            print("Google sign-in error: \(error)")
+        }
+    }
+    
     @MainActor
     private func setLoading(_ value: Bool) {
         self.isLoading = value

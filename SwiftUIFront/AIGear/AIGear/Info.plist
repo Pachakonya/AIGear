@@ -2,6 +2,19 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+        <key>GIDClientID</key>
+        <string>109992993959-4fkn2hmfj7m8iv95jh335j8abi0u85f1.apps.googleusercontent.com</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.09992993959-4fkn2hmfj7m8iv95jh335j8abi0u85f1</string>
+			</array>
+		</dict>
+	</array>
+	<key>MBXAccessToken</key>
+	<string>pk.eyJ1IjoicGFjaGFrb255YSIsImEiOiJjbWMwZXhhcjAwMWpiMnZzNzBseTE2ZnByIn0.9zoFeRsfVvvo-18O86opxA</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>DMSans-Bold.ttf</string>
@@ -11,18 +24,10 @@
 	</array>
 	<key>UILaunchScreen</key>
 	<dict>
-		<key>UIImageName</key>
-		<string>launch_screen</string>
 		<key>UIBackgroundColor</key>
 		<string>#fdfff5</string>
+		<key>UIImageName</key>
+		<string>launch_screen</string>
 	</dict>
-	<key>UIUserInterfaceStyle</key>
-	<string>Light</string>
-	<key>CFBundleURLTypes</key>
-	<array>
-		<dict/>
-	</array>
-	<key>MBXAccessToken</key>
-	<string>pk.eyJ1IjoicGFjaGFrb255YSIsImEiOiJjbWMwZXhhcjAwMWpiMnZzNzBseTE2ZnByIn0.9zoFeRsfVvvo-18O86opxA</string>
 </dict>
 </plist>

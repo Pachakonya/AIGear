@@ -1,4 +1,6 @@
 import SwiftUI
+import GoogleSignIn
+import GoogleSignInSwift
 
 struct SignInView: View {
     @State private var email = ""
@@ -31,6 +33,10 @@ struct SignInView: View {
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle())
                 }
+
+                GoogleSignInButton(action: handleGoogleSignIn)
+                    .frame(height: 50)
+                    .padding()
             }
             .padding()
             .alert("Error", isPresented: $showError) {
@@ -51,6 +57,28 @@ struct SignInView: View {
             errorMessage = error.localizedDescription
             showError = true
             print("❌ Sign-in error: \(error.localizedDescription)")
+        }
+    }
+
+    func handleGoogleSignIn() {
+        guard let windowScene = UIApplication.shared.connectedScenes
+                .compactMap({ $0 as? UIWindowScene })
+                .first(where: { $0.activationState == .foregroundActive }),
+              let rootViewController = windowScene.windows
+                .first(where: { $0.isKeyWindow })?.rootViewController else { return }
+        GIDSignIn.sharedInstance.signIn(withPresenting: rootViewController) { signInResult, error in
+            if let error = error {
+                print("Google Sign-In error: \(error)")
+                return
+            }
+            guard let idToken = signInResult?.user.idToken?.tokenString else {
+                print("No Google ID token")
+                return
+            }
+            // Send idToken to your backend
+            Task {
+                await AuthService.shared.signInWithGoogle(idToken: idToken)
+            }
         }
     }
 }

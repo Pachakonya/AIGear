@@ -13,3 +13,4 @@ python-jose
 passlib[bcrypt]
 email-validator
 pydantic[email]
+google-auth
