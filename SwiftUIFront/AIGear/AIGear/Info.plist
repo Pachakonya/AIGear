@@ -5,10 +5,17 @@
 	<key>UIAppFonts</key>
 	<array>
 		<string>DMSans-Bold.ttf</string>
-		<string>DMSans-Regular.tt</string>
+		<string>DMSans-Regular.ttf</string>
 		<string>DMMono-Regular.ttf</string>
 		<string>DMMono-Medium.ttf</string>
 	</array>
+	<key>UILaunchScreen</key>
+	<dict>
+		<key>UIImageName</key>
+		<string>launch_screen</string>
+		<key>UIBackgroundColor</key>
+		<string>#fdfff5</string>
+	</dict>
 	<key>UIUserInterfaceStyle</key>
 	<string>Light</string>
 	<key>CFBundleURLTypes</key>

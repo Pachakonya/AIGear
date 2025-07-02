@@ -9,7 +9,7 @@ struct AIGearApp: App {
         WindowGroup {
             ZStack {
                 if clerk.isLoaded {
-                    AuthGate()
+                    RootView()
                 } else {
                     ProgressView("Loading...")
                 }
@@ -22,3 +22,4 @@ struct AIGearApp: App {
         }
     }
 }
+
