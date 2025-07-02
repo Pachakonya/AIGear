@@ -2,13 +2,13 @@ import SwiftUI
 
 struct RootView: View {
     @AppStorage("hasSeenLaunchScreen") var hasSeenLaunchScreen: Bool = false
-    @AppStorage("isSignedIn") var isSignedIn: Bool = false
+    @StateObject private var authService = AuthService.shared
 
     var body: some View {
         NavigationView {
             if !hasSeenLaunchScreen {
                 LaunchScreenView()
-            } else if !isSignedIn {
+            } else if !authService.isAuthenticated {
                 AuthGate() // Replace with your actual auth view
             } else {
                 MainTabView()

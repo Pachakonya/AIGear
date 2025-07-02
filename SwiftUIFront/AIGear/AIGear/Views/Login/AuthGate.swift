@@ -1,11 +1,10 @@
 import SwiftUI
-import Clerk
 
 struct AuthGate: View {
-    @Environment(Clerk.self) private var clerk
+    @StateObject private var authService = AuthService.shared
 
     var body: some View {
-        if clerk.user != nil {
+        if authService.isAuthenticated {
             MainTabView() // Replace with your main app view
         } else {
             SignUpOrSignInView()

@@ -4,6 +4,7 @@ from src.database import Base, engine
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from src.aiengine.router import router as aiengine_router
+from src.auth.router import router as auth_router
 
 from celery_app import create_task
 
@@ -29,3 +30,4 @@ def run_tasks(data=Body(...)):
 
 app.include_router(post_router)
 app.include_router(aiengine_router)
+app.include_router(auth_router)

@@ -1,10 +1,11 @@
 import SwiftUI
-import Clerk
 
 struct SignInView: View {
     @State private var email = ""
     @State private var password = ""
-    @State private var isSignedIn = false
+    @State private var errorMessage = ""
+    @State private var showError = false
+    @StateObject private var authService = AuthService.shared
 
     var body: some View {
         NavigationStack {
@@ -21,33 +22,34 @@ struct SignInView: View {
                     .textFieldStyle(.roundedBorder)
 
                 Button("Continue") {
-                    Task { await signIn(email: email, password: password) }
+                    Task { await signIn() }
                 }
                 .buttonStyle(.borderedProminent)
+                .disabled(authService.isLoading)
+                
+                if authService.isLoading {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle())
+                }
             }
             .padding()
-            .navigationDestination(isPresented: $isSignedIn) {
-                MainTabView()
+            .alert("Error", isPresented: $showError) {
+                Button("OK") { }
+            } message: {
+                Text(errorMessage)
             }
         }
     }
 
-    func signIn(email: String, password: String) async {
+    func signIn() async {
         do {
-            let signIn = try await SignIn.create(
-                strategy: .identifier(email, password: password)
-            )
-
-            if signIn.status == .complete {
-                // ✅ Session is created automatically by Clerk
-                isSignedIn = true
+            let success = try await authService.signIn(email: email, password: password)
+            if success {
                 print("✅ Signed in successfully")
-            } else {
-                print("⚠️ Sign-in incomplete. Status: \(signIn.status.rawValue)")
-                // You could handle MFA, pending verification, etc. here
             }
-
         } catch {
+            errorMessage = error.localizedDescription
+            showError = true
             print("❌ Sign-in error: \(error.localizedDescription)")
         }
     }

@@ -9,3 +9,5 @@ alembic
 openai
 sqlalchemy
 pytest
+python-jose
+passlib[bcrypt]

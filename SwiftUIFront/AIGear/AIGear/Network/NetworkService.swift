@@ -26,6 +26,12 @@ class NetworkService {
     static let shared = NetworkService()
     private let baseURL = "https://api.aigear.tech" // ← REPLACE with your IP
 
+    private func addAuthHeader(to request: inout URLRequest) {
+        if let token = AuthService.shared.getAuthToken() {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+    }
+
     func getGearRecommendation(weather: String, trailCondition: String, completion: @escaping (Result<GearResponse, Error>) -> Void) {
         guard let url = URL(string: "\(baseURL)/gear/recommend") else {
             return completion(.failure(NSError(domain: "Invalid URL", code: 400)))
@@ -34,6 +40,7 @@ class NetworkService {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        addAuthHeader(to: &request)
 
         let body = GearRequest(weather: weather, trail_condition: trailCondition)
         request.httpBody = try? JSONEncoder().encode(body)
@@ -77,6 +84,7 @@ class NetworkService {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        addAuthHeader(to: &request)
         request.httpBody = try? JSONEncoder().encode(body)
 
         URLSession.shared.dataTask(with: request) { data, response, error in
@@ -109,6 +117,7 @@ class NetworkService {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        addAuthHeader(to: &request)
         request.httpBody = try? JSONEncoder().encode(body)
 
         URLSession.shared.dataTask(with: request) { data, response, error in
@@ -135,6 +144,7 @@ class NetworkService {
         }
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
+        addAuthHeader(to: &request)
         URLSession.shared.dataTask(with: request) { data, response, error in
             if let error = error {
                 return completion(Result.failure(error))

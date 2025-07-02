@@ -1,12 +1,14 @@
 import SwiftUI
-import Clerk
 
 struct SignUpView: View {
     @State private var email = ""
     @State private var password = ""
+    @State private var username = ""
     @State private var code = ""
     @State private var isVerifying = false
-    @State private var isVerified = false
+    @State private var errorMessage = ""
+    @State private var showError = false
+    @StateObject private var authService = AuthService.shared
 
     var body: some View {
         NavigationStack {
@@ -17,8 +19,9 @@ struct SignUpView: View {
                     TextField("Verification Code", text: $code)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                     Button("Verify") {
-                        Task { await verify(code: code) }
+                        Task { await verify() }
                     }
+                    .disabled(authService.isLoading)
                 } else {
                     TextField("Email", text: $email)
                         .disableAutocorrection(true)
@@ -26,54 +29,59 @@ struct SignUpView: View {
                         .textInputAutocapitalization(.never)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                     
+                    TextField("Username (Optional)", text: $username)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                    
                     SecureField("Password", text: $password)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
+                    
                     Button("Continue") {
-                        Task { await signUp(email: email, password: password) }
+                        Task { await signUp() }
                     }
+                    .disabled(authService.isLoading)
+                }
+                
+                if authService.isLoading {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle())
                 }
             }
             .padding()
-            
-            .navigationDestination(isPresented: $isVerified) {
-                MainTabView()
+            .alert("Error", isPresented: $showError) {
+                Button("OK") { }
+            } message: {
+                Text(errorMessage)
             }
         }
     }
 
-    func signUp(email: String, password: String) async {
+    func signUp() async {
         do {
-            var signUp = try await SignUp.create(
-                strategy: .standard(emailAddress: email, password: password)
+            let success = try await authService.signUp(
+                email: email, 
+                password: password, 
+                username: username.isEmpty ? nil : username
             )
-
-            if signUp.unverifiedFields.contains("email_address") {
-                signUp = try await signUp.prepareVerification(strategy: .emailCode)
+            if success {
                 isVerifying = true
+                print("✅ Registration successful. Please verify your email.")
             }
         } catch {
-            print("Sign-up error: \(error)")
+            errorMessage = error.localizedDescription
+            showError = true
+            print("❌ Sign-up error: \(error.localizedDescription)")
         }
     }
 
-    func verify(code: String) async {
+    func verify() async {
         do {
-            guard let signUp = Clerk.shared.client?.signUp else {
-                isVerifying = false
-                return
+            let success = try await authService.verifyEmail(email: email, code: code)
+            if success {
+                print("✅ Verification complete. User authenticated.")
             }
-
-            let result = try await signUp.attemptVerification(strategy: .emailCode(code: code))
-
-            if result.status == .complete {
-                // ✅ Session is automatically created by Clerk
-                print("✅ Verification complete. Session created.")
-                isVerified = true
-            } else {
-                print("⚠️ Verification pending. Status: \(result.status.rawValue)")
-            }
-
         } catch {
+            errorMessage = error.localizedDescription
+            showError = true
             print("❌ Verification error: \(error.localizedDescription)")
         }
     }

@@ -15,7 +15,12 @@ struct MainTabView: View {
 
             GearView()
                 .tabItem {
-                    Label("Gear", systemImage: "person")
+                    Label("Gear", systemImage: "backpack")
+                }
+            
+            ProfileView()
+                .tabItem {
+                    Label("Profile", systemImage: "person")
                 }
         }
     }
