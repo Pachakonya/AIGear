@@ -10,35 +10,77 @@ struct SignInView: View {
     @StateObject private var authService = AuthService.shared
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 16) {
-                Text("Sign In").font(.title)
+        GeometryReader { geo in
+            ZStack {
+                AuthBackgroundView()
+                    .scaleEffect(1.3)
 
-                TextField("Email", text: $email)
-                    .disableAutocorrection(true)
-                    .keyboardType(.emailAddress)
-                    .textInputAutocapitalization(.never)
-                    .textFieldStyle(.roundedBorder)
-                
-                SecureField("Password", text: $password)
-                    .textFieldStyle(.roundedBorder)
+                VStack(spacing: 28) {
+                    Spacer(minLength: geo.size.height * 0.08)
+                    // Branded icon (optional)
+                    // Image("horse_icon")
+                    //     .resizable()
+                    //     .scaledToFit()
+                    //     .frame(width: 80, height: 80)
+                    //     .shadow(radius: 8, y: 4)
+                    // Title
+                    Text("Sign In")
+                        .font(.system(size: 26, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.center)
+                        .shadow(color: .black.opacity(0.7), radius: 4, x: 0, y: 2)
+                        .padding(.horizontal, 16)
+                    // Card
+                    VStack(spacing: 20) {
+                        TextField("Email", text: $email)
+                            .disableAutocorrection(true)
+                            .keyboardType(.emailAddress)
+                            .textInputAutocapitalization(.never)
+                            .padding()
+                            .background(Color.white.opacity(0.9))
+                            .cornerRadius(12)
+                            .foregroundColor(.black)
 
-                Button("Continue") {
-                    Task { await signIn() }
+                        SecureField("Password", text: $password)
+                            .padding()
+                            .background(Color.white.opacity(0.9))
+                            .cornerRadius(12)
+                            .foregroundColor(.black)
+                            
+                        Button("Continue") {
+                            Task { await signIn() }
+                        }
+                        .font(.system(size: 18, weight: .semibold, design: .rounded))
+                        .foregroundColor(.black)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(Color.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                        .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 4)
+                        .disabled(authService.isLoading)
+                        if authService.isLoading {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle())
+                        }
+                    }
+                    .padding(.vertical, 28)
+                    .padding(.horizontal, 20)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 32, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+                    .shadow(color: .black.opacity(0.18), radius: 16, x: 0, y: 8)
+                    .padding(.horizontal, 16)
+                    
+                    Spacer()
+                    
+                    Text("By continuing you agree to our Terms of Service and Privacy Policy.")
+                        .font(.footnote)
+                        .foregroundColor(.white.opacity(0.7))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 24)
+                        .padding(.bottom, geo.safeAreaInsets.bottom + 12)
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(authService.isLoading)
-                
-                if authService.isLoading {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle())
-                }
-
-                GoogleSignInButton(action: handleGoogleSignIn)
-                    .frame(height: 50)
-                    .padding()
+                .frame(width: geo.size.width)
             }
-            .padding()
             .alert("Error", isPresented: $showError) {
                 Button("OK") { }
             } message: {
@@ -57,28 +99,6 @@ struct SignInView: View {
             errorMessage = error.localizedDescription
             showError = true
             print("❌ Sign-in error: \(error.localizedDescription)")
-        }
-    }
-
-    func handleGoogleSignIn() {
-        guard let windowScene = UIApplication.shared.connectedScenes
-                .compactMap({ $0 as? UIWindowScene })
-                .first(where: { $0.activationState == .foregroundActive }),
-              let rootViewController = windowScene.windows
-                .first(where: { $0.isKeyWindow })?.rootViewController else { return }
-        GIDSignIn.sharedInstance.signIn(withPresenting: rootViewController) { signInResult, error in
-            if let error = error {
-                print("Google Sign-In error: \(error)")
-                return
-            }
-            guard let idToken = signInResult?.user.idToken?.tokenString else {
-                print("No Google ID token")
-                return
-            }
-            // Send idToken to your backend
-            Task {
-                await AuthService.shared.signInWithGoogle(idToken: idToken)
-            }
         }
     }
 }

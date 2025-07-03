@@ -14,5 +14,10 @@ struct RootView: View {
                 MainTabView()
             }
         }
+        
+//        The launch Screen Would pop up now
+        .onAppear {
+            hasSeenLaunchScreen = false // Always show launch screen on app start
+        }
     }
 }

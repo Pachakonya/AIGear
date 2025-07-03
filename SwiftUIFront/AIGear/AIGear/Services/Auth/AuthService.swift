@@ -57,8 +57,10 @@ class AuthService: ObservableObject {
         if let userData = try? JSONEncoder().encode(user) {
             UserDefaults.standard.set(userData, forKey: userKey)
         }
-        self.currentUser = user
-        self.isAuthenticated = true
+        Task { @MainActor in
+            self.currentUser = user
+            self.isAuthenticated = true
+        }
     }
     
     func clearAuth() {

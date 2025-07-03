@@ -1,0 +1,22 @@
+import SwiftUI
+
+struct AuthBackgroundView: View {
+    var body: some View {
+        GeometryReader { geo in
+            ZStack {
+                Image("auth_image")
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: geo.size.width, height: geo.size.height)
+                    .scaleEffect(1.2)
+                    .offset(y: 20)
+                    .offset(x: 100)
+                    .ignoresSafeArea()
+                    
+                Color.black
+                    .opacity(0.4)
+                    .ignoresSafeArea()
+            }
+        }
+    }
+}

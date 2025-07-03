@@ -4,7 +4,7 @@ import SwiftUI
 struct AIGearApp: App {
     var body: some Scene {
         WindowGroup {
-                    RootView()
+            RootView()
         }
     }
 }
