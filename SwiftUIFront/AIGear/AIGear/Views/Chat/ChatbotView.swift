@@ -98,7 +98,3 @@ struct ChatbotView: View {
         }
     }
 }
-
-#Preview {
-    ChatbotView()
-} 

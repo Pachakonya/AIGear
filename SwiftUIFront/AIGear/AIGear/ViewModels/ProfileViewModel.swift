@@ -22,4 +22,18 @@ class ProfileViewModel: ObservableObject {
     func signOut() {
         authService.signOut()
     }
+
+    func deleteAccount(completion: @escaping (Result<Void, Error>) -> Void) {
+        NetworkService.shared.deleteAccount { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    self.signOut() // Log out after deletion
+                    completion(.success(()))
+                case .failure(let error):
+                    completion(.failure(error))
+                }
+            }
+        }
+    }
 }

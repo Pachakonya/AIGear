@@ -3,6 +3,8 @@ import SwiftUI
 struct ProfileView: View {
     @StateObject private var viewModel = ProfileViewModel()
     @State private var showingSignOutAlert = false
+    @State private var showingDeleteAlert = false
+    @State private var isDeleting = false
     
     var body: some View {
         NavigationView {
@@ -61,6 +63,41 @@ struct ProfileView: View {
                     }
                 } message: {
                     Text("Are you sure you want to sign out?")
+                }
+                
+                // Delete Account Button
+                Button(action: {
+                    showingDeleteAlert = true
+                }) {
+                    HStack {
+                        Image(systemName: "trash")
+                        Text("Delete Account")
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color.red)
+                    .cornerRadius(12)
+                }
+                .padding(.horizontal)
+                .alert("Delete Account", isPresented: $showingDeleteAlert) {
+                    Button("Cancel", role: .cancel) { }
+                    Button("Delete", role: .destructive) {
+                        isDeleting = true
+                        viewModel.deleteAccount { result in
+                            isDeleting = false
+                            switch result {
+                            case .success:
+                                // Optionally show a success message or just rely on signOut
+                                break
+                            case .failure(let error):
+                                // Optionally show an error alert
+                                print("Delete failed: \(error.localizedDescription)")
+                            }
+                        }
+                    }
+                } message: {
+                    Text("Are you sure you want to permanently delete your account? This action cannot be undone.")
                 }
             }
             .navigationTitle("Profile")

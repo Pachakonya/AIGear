@@ -1,6 +1,7 @@
 import SwiftUI
 import GoogleSignIn
 import GoogleSignInSwift
+import AuthenticationServices
 
 struct SignUpOrSignInView: View {
     @State private var showSignIn = false
@@ -35,6 +36,28 @@ struct SignUpOrSignInView: View {
 
                         // Login card with blur and buttons
                         VStack(spacing: 20) {
+                            // // Apple Sign-In Button
+                            // SignInWithAppleButton(
+                            //     .signIn,
+                            //     onRequest: { request in
+                            //         request.requestedScopes = [.fullName, .email]
+                            //     },
+                            //     onCompletion: { result in
+                            //         switch result {
+                            //         case .success(let authResults):
+                            //             print("Apple sign in success: \(authResults)")
+                            //         case .failure(let error):
+                            //             print("Apple sign in failed: \(error.localizedDescription)")
+                            //         }
+                            //     }
+                            // )
+                            // .signInWithAppleButtonStyle(.white)
+                            // .frame(height: 52)
+                            // .frame(maxWidth: .infinity)
+                            // .cornerRadius(18)
+                            // .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 4)
+                            // .padding(.horizontal, 8)
+
                             // Google Sign-In Button
                             Button(action: handleGoogleSignIn) {
                                 HStack(spacing: 12) {

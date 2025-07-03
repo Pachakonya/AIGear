@@ -32,36 +32,36 @@ class NetworkService {
         }
     }
 
-    func getGearRecommendation(weather: String, trailCondition: String, completion: @escaping (Result<GearResponse, Error>) -> Void) {
-        guard let url = URL(string: "\(baseURL)/gear/recommend") else {
-            return completion(.failure(NSError(domain: "Invalid URL", code: 400)))
-        }
+    // func getGearRecommendation(weather: String, trailCondition: String, completion: @escaping (Result<GearResponse, Error>) -> Void) {
+    //     guard let url = URL(string: "\(baseURL)/gear/recommend") else {
+    //         return completion(.failure(NSError(domain: "Invalid URL", code: 400)))
+    //     }
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        addAuthHeader(to: &request)
+    //     var request = URLRequest(url: url)
+    //     request.httpMethod = "POST"
+    //     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    //     addAuthHeader(to: &request)
 
-        let body = GearRequest(weather: weather, trail_condition: trailCondition)
-        request.httpBody = try? JSONEncoder().encode(body)
+    //     let body = GearRequest(weather: weather, trail_condition: trailCondition)
+    //     request.httpBody = try? JSONEncoder().encode(body)
 
-        URLSession.shared.dataTask(with: request) { data, response, error in
-            if let error = error {
-                return completion(.failure(error))
-            }
+    //     URLSession.shared.dataTask(with: request) { data, response, error in
+    //         if let error = error {
+    //             return completion(.failure(error))
+    //         }
 
-            guard let data = data else {
-                return completion(.failure(NSError(domain: "No Data", code: 404)))
-            }
+    //         guard let data = data else {
+    //             return completion(.failure(NSError(domain: "No Data", code: 404)))
+    //         }
 
-            do {
-                let decoded = try JSONDecoder().decode(GearResponse.self, from: data)
-                completion(.success(decoded))
-            } catch {
-                completion(.failure(error))
-            }
-        }.resume()
-    }
+    //         do {
+    //             let decoded = try JSONDecoder().decode(GearResponse.self, from: data)
+    //             completion(.success(decoded))
+    //         } catch {
+    //             completion(.failure(error))
+    //         }
+    //     }.resume()
+    // }
     
     func uploadTrailData(
         coordinates: [CLLocationCoordinate2D],
@@ -158,6 +158,27 @@ class NetworkService {
             } catch {
                 completion(Result.failure(error))
             }
+        }.resume()
+    }
+
+    func deleteAccount(completion: @escaping (Result<Void, Error>) -> Void) {
+        guard let token = AuthService.shared.getAuthToken() else {
+            completion(.failure(NSError(domain: "No token", code: 401)))
+            return
+        }
+        var request = URLRequest(url: URL(string: "https://your-backend-url.com/api/auth/delete-account")!)
+        request.httpMethod = "DELETE"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            if let error = error {
+                completion(.failure(error))
+                return
+            }
+            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+                completion(.failure(NSError(domain: "Delete failed", code: 500)))
+                return
+            }
+            completion(.success(()))
         }.resume()
     }
 }

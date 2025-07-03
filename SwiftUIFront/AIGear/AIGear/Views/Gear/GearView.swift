@@ -1,105 +1,110 @@
 import SwiftUI
 
 struct GearView: View {
-    @State private var selectedTab = "Backpacks"
-    let categories = ["Backpacks", "Footwear", "Clothing", "Outerwear", "Shelter", "Accesories", "Essentials"]
+    @State private var showProfile = false
 
     var body: some View {
         NavigationView {
-            VStack(alignment: .leading) {
+            VStack(alignment: .leading, spacing: 24) {
                 HStack {
+                    Text("Let's hike")
+                        .font(.system(size: 32, weight: .bold))
                     Spacer()
-                    
+                    Button(action: { showProfile = true }) {
+                        Image(systemName: "person.crop.circle")
+                            .resizable()
+                            .frame(width: 40, height: 40)
+                            .foregroundColor(.gray)
+                            .background(Color.white)
+                            .clipShape(Circle())
+                            .shadow(radius: 2)
+                    }
+                    .sheet(isPresented: $showProfile) {
+                        ProfileView()
+                    }
+                }
+                .padding(.horizontal)
+
+                // Activity card
+                HStack(spacing: 32) {
+                    VStack {
+                        Text("27")
+                            .font(.title)
+                            .fontWeight(.bold)
+                        Text("hikes")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
+                    VStack {
+                        Text("319 km")
+                            .font(.title)
+                            .fontWeight(.bold)
+                        Text("walked this summer")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
+                }
+                .padding()
+                .frame(maxWidth: .infinity)
+                .background(Color(.systemGray5))
+                .cornerRadius(20)
+                .padding(.horizontal)
+
+                // Wardrobe
+                VStack(alignment: .leading, spacing: 8) {
                     Text("Wardrobe")
                         .font(.headline)
-                    
-                    Spacer()
-                }
-                .padding(.vertical)
-                .navigationBarHidden(true)
-
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 20) {
-                        ForEach(categories, id: \.self) { category in
-                            VStack(spacing: 4) {
-                                Text(category)
-                                    .font(.caption)
-                                    .fontWeight(selectedTab == category ? .bold : .regular)
-                                    .foregroundColor(selectedTab == category ? .white : .black)
-                                    .padding(.vertical, 8)
-                                    .padding(.horizontal, 12)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 10)
-                                            .fill(selectedTab == category ? Color.blue : Color.gray.opacity(0.2))
-                                    )
-
-                                Capsule()
-                                    .fill(selectedTab == category ? Color.blue : Color.clear)
-                                    .frame(height: 3)
-                            }
-                            .onTapGesture {
-                                selectedTab = category
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 16) {
+                            ForEach(0..<3) { i in
+                                Image("gear\(i+1)") // Replace with your gear images
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 72, height: 72)
+                                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                                    .shadow(radius: 2)
                             }
                         }
+                        .padding(.vertical, 8)
                     }
-                    .padding(.horizontal)
                 }
-
-                ScrollView {
-                    VStack(spacing: 20) {
-                        GearItem(imageName: "backpack", title: "Osprey Atmos AG 65", subtitle: "Waterproof, Winter")
-                        GearItem(imageName: "backpack", title: "Gregory Baltoro 65", subtitle: "Lightweight, Summer")
-                        GearItem(imageName: "backpack", title: "Deuter Speed Lite 20", subtitle: "Daypack, 20L")
-                    }
-                    .padding()
-                }
+                .padding(.horizontal)
 
                 Spacer()
-
-                HStack {
-                    Spacer()
-                    NavigationLink(destination: Text("Add Gear View")) {
-                        Image(systemName: "plus")
-                            .foregroundColor(.white)
-                            .frame(width: 50, height: 50)
-                            .background(Color.blue)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                            .shadow(radius: 3)
-                    }
-                    .padding()
-                }
             }
+            .background(Color(.systemGray6).ignoresSafeArea())
+            .navigationBarHidden(true)
         }
     }
 }
 
-struct GearItem: View {
-    let imageName: String
-    let title: String
-    let subtitle: String
-
-    var body: some View {
-        HStack(alignment: .center, spacing: 16) {
-            Image(systemName: imageName)
-                .resizable()
-                .scaledToFit()
-                .frame(width: 50, height: 50)
-                .background(Color.gray.opacity(0.1))
-                .cornerRadius(10)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .fontWeight(.medium)
-                Text(subtitle)
-                    .font(.subheadline)
-                    .foregroundColor(.blue)
-            }
-            Spacer()
-        }
-    }
-}
-
-#Preview {
-    GearView()
-}
+// struct ProfileStatsView: View {
+//     var body: some View {
+//         VStack(spacing: 32) {
+//             Text("Your activity")
+//                 .font(.title2)
+//                 .fontWeight(.bold)
+//             HStack(spacing: 32) {
+//                 VStack {
+//                     Text("27")
+//                         .font(.title)
+//                         .fontWeight(.bold)
+//                     Text("hikes")
+//                         .font(.caption)
+//                         .foregroundColor(.gray)
+//                 }
+//                 VStack {
+//                     Text("319 km")
+//                         .font(.title)
+//                         .fontWeight(.bold)
+//                     Text("walked this summer")
+//                         .font(.caption)
+//                         .foregroundColor(.gray)
+//                 }
+//             }
+//             Spacer()
+//         }
+//         .padding()
+//     }
+// }
 

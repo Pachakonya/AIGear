@@ -2,8 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from src.auth.schemas import UserCreate, UserLogin, UserVerify, TokenResponse, UserResponse
-from src.auth.service import create_user, authenticate_user, verify_user
+from src.auth.service import create_user, authenticate_user, verify_user, delete_user_account
 from src.auth.utils import create_access_token
+from src.auth.dependencies import get_current_user
 from src.database import get_db
 from src.auth.models import User
 from google.oauth2 import id_token
@@ -44,6 +45,11 @@ def verify(user: UserVerify, db: Session = Depends(get_db)):
         token_type="bearer",
         user=UserResponse(id=db_user.id, email=db_user.email, username=db_user.username)
     )
+
+@router.delete("/delete-account", summary="Delete current user account")
+def delete_account(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    delete_user_account(current_user, db)
+    return {"msg": "Account deleted"}
 
 @router.post("/google", response_model=TokenResponse)
 def google_auth(data: dict = Body(...), db: Session = Depends(get_db)):

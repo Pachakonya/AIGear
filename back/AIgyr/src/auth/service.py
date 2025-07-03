@@ -35,3 +35,7 @@ def verify_user(db: Session, email: str, code: str):
         db.refresh(user)
         return user
     return None
+
+def delete_user_account(user, db):
+    db.delete(user)
+    db.commit()

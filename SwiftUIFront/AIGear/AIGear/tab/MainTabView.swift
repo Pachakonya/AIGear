@@ -1,31 +1,62 @@
 import SwiftUI
 
 struct MainTabView: View {
+    @State private var selectedTab = 1 // Center tab (ChatBot) is default
+
     var body: some View {
-        TabView {
-            ChatbotView()
-                .tabItem {
-                    Label("Home", systemImage: "house")
-                }
+        ZStack {
+            TabView(selection: $selectedTab) {
+                MapContainerView()
+                    .tabItem {
+                        Label("Map", systemImage: "map")
+                    }
+                    .tag(0)
 
-            MapContainerView()
-                .tabItem {
-                    Label("Map", systemImage: "map")
-                }
+                ChatbotView()
+                    .tabItem {
+                        // Empty label, we'll overlay a custom button
+                        Text("")
+                    }
+                    .tag(1)
 
-            GearView()
-                .tabItem {
-                    Label("Gear", systemImage: "backpack")
+                GearView()
+                    .tabItem {
+                        Label("Gear", systemImage: "figure.hiking")
+                    }
+                    .tag(2)
+            }
+            .accentColor(.black)
+
+            // Custom large center button overlay
+            VStack {
+                Spacer()
+                HStack {
+                    Spacer()
+                    Button(action: { selectedTab = 1 }) {
+                        ZStack {
+                            if selectedTab == 1 {
+                                Circle()
+                                    .stroke(Color.black, lineWidth: 4)
+                                    .frame(width: 70, height: 70)
+                            }
+
+                            Circle()
+                                .fill(Color.black)
+                                .frame(width: 58, height: 58)
+                                .shadow(radius: 6)
+                                
+                            Image("horse_icon_white")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 32, height: 32)
+                                .foregroundColor(.black)
+                        }
+                    }
+                   
+                    Spacer()
                 }
-            
-            ProfileView()
-                .tabItem {
-                    Label("Profile", systemImage: "person")
-                }
+            }
+            .allowsHitTesting(false)
         }
     }
-}
-
-#Preview {
-    MainTabView()
 }
