@@ -166,7 +166,7 @@ class NetworkService {
             completion(.failure(NSError(domain: "No token", code: 401)))
             return
         }
-        var request = URLRequest(url: URL(string: "https://your-backend-url.com/api/auth/delete-account")!)
+        var request = URLRequest(url: URL(string: "https://api.aigear.tech/api/auth/delete-account")!)
         request.httpMethod = "DELETE"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         URLSession.shared.dataTask(with: request) { data, response, error in
