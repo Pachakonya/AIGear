@@ -10,6 +10,7 @@ openai
 sqlalchemy
 pytest
 python-jose
+bcrypt==3.2.2
 passlib[bcrypt]
 email-validator
 pydantic[email]
