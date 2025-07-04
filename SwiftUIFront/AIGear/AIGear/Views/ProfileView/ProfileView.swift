@@ -30,14 +30,34 @@ struct ProfileView: View {
                 
                 // Profile Options
                 VStack(spacing: 0) {
-                    ProfileOptionRow(icon: "person", title: "Edit Profile", action: {})
                     ProfileOptionRow(icon: "gear", title: "Settings", action: {})
                     ProfileOptionRow(icon: "bell", title: "Notifications", action: {})
-                    ProfileOptionRow(icon: "questionmark.circle", title: "Help & Support", action: {})
+                   
                 }
                 .background(Color(.systemGray6))
                 .cornerRadius(12)
                 .padding(.horizontal)
+                
+                // About Section
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("About")
+                        .font(.headline)
+                        .padding(.leading)
+                    VStack(spacing: 0) {
+                        NavigationLink(destination: SupportView()) {
+                            ProfileOptionRow(icon: "questionmark.circle", title: "Support", action: {})
+                        }
+                        NavigationLink(destination: PrivacyPolicyView()) {
+                            ProfileOptionRow(icon: "doc.text", title: "Privacy Policy", action: {})
+                        }
+                        NavigationLink(destination: TermsOfServiceView()) {
+                            ProfileOptionRow(icon: "doc.text", title: "Terms of Service", action: {})
+                        }
+                    }
+                    .background(Color(.systemGray6))
+                    .cornerRadius(12)
+                    .padding(.horizontal)
+                }
                 
                 Spacer()
                 

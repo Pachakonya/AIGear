@@ -7,15 +7,6 @@ struct MapContainerView: View {
     @State private var is3D = false
     @State private var showSuggestions = false
     
-    let suggestions = [
-        "LGA Airport",
-        "John F. Kennedy Int'l Airport",
-        "Home",
-        "The Times Square Edition",
-        "Manhattan Club",
-        "Mean Fiddler"
-    ]
-    
     var body: some View {
         ZStack(alignment: .top) {
             MapboxOutdoorMapView(viewModel: viewModel, is3D: $is3D)
@@ -32,16 +23,6 @@ struct MapContainerView: View {
     
             VStack(spacing: 12) {
                 HStack {
-                    // 👤 Profile image
-                    Image(systemName: "person.crop.circle.fill")
-                        .resizable()
-                        .frame(width: 36, height: 36)
-                        .foregroundColor(.black)
-                        .background(Color.white)
-                        .clipShape(Circle())
-
-                    Spacer()
-
                     // 📍 Location text
                     VStack(spacing: 2) {
                         Text("Your Location")
@@ -138,37 +119,7 @@ struct MapContainerView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                     .shadow(radius: 2)
                     .padding(.horizontal)
-                    .onTapGesture {
-                        showSuggestions = true
-                    }
 
-                    // Destination Suggestions List
-                    if showSuggestions {
-                        LazyVStack(alignment: .leading, spacing: 0) {
-                            ForEach(suggestions, id: \ .self) { suggestion in
-                                Button(action: {
-                                    searchQuery = suggestion
-                                    performSearch(query: suggestion)
-                                    showSuggestions = false
-                                }) {
-                                    HStack {
-                                        Image(systemName: "mappin.and.ellipse")
-                                            .foregroundColor(.blue)
-                                        Text(suggestion)
-                                            .foregroundColor(.primary)
-                                        Spacer()
-                                    }
-                                    .padding(.vertical, 10)
-                                    .padding(.horizontal)
-                                }
-                                Divider()
-                            }
-                        }
-                        .background(Color.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                        .shadow(radius: 2)
-                        .padding(.horizontal)
-                    }
                 }
                 .padding(.bottom, 24)
                 .background(
@@ -200,10 +151,6 @@ struct MapContainerView: View {
             }
         }
     }
-}
-
-#Preview {
-    MainTabView()
 }
 
 // Custom shape for rounding only specific corners

@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 import MapboxMaps
 import MapboxDirections
 import CoreLocation
@@ -34,6 +35,12 @@ struct MapboxOutdoorMapView: UIViewRepresentable {
         }
 
         @objc func mapTapped(_ sender: UITapGestureRecognizer) {
+            // Check if keyboard is open
+            if KeyboardObserver.shared.isKeyboardVisible {
+                UIApplication.shared.endEditing()
+                return // Do not build route on this tap
+            }
+
             guard let mapView = mapView else { return }
 
             let tapPoint = sender.location(in: mapView)

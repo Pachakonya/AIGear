@@ -57,7 +57,7 @@ struct GearView: View {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 16) {
                             ForEach(0..<3) { i in
-                                Image("gear\(i+1)") // Replace with your gear images
+                                Image("smart_toples") // Replace with your gear images
                                     .resizable()
                                     .scaledToFill()
                                     .frame(width: 72, height: 72)

@@ -50,7 +50,6 @@ struct ChatbotView: View {
                 TextField("Type your message...", text: $userInput)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                     .focused($isInputFocused)
-                    .onSubmit(sendMessage)
                 Button(action: sendMessage) {
                     Image(systemName: "paperplane.fill")
                         .foregroundColor(userInput.isEmpty ? .gray : .blue)
@@ -60,6 +59,10 @@ struct ChatbotView: View {
             .padding()
         }
         .navigationTitle("AI Trail Chatbot")
+        .contentShape(Rectangle())
+        .onTapGesture {
+            UIApplication.shared.endEditing()
+        }
     }
 
     func sendMessage() {

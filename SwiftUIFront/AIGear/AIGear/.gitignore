@@ -47,3 +47,6 @@ playground.xcworkspace
 # Xcode Cloud
 .xccheckout
 
+info.plist
+
+

@@ -27,7 +27,7 @@ struct MainTabView: View {
             }
             .accentColor(.black)
 
-            // Custom large center button overlay
+            // Overlay the horse icon, ignoring safe area
             VStack {
                 Spacer()
                 HStack {
@@ -44,7 +44,7 @@ struct MainTabView: View {
                                 .fill(Color.black)
                                 .frame(width: 58, height: 58)
                                 .shadow(radius: 6)
-                                
+                            
                             Image("horse_icon_white")
                                 .resizable()
                                 .scaledToFit()
@@ -56,6 +56,7 @@ struct MainTabView: View {
                     Spacer()
                 }
             }
+            .ignoresSafeArea(.keyboard, edges: .bottom)
             .allowsHitTesting(false)
         }
     }
