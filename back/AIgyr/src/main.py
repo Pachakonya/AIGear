@@ -1,4 +1,6 @@
 from fastapi import FastAPI, Body
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from src.posts.router import router as post_router
 from src.database import Base, engine
 from fastapi.responses import JSONResponse
@@ -20,6 +22,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Mount static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 @app.post('/ex1')
 def run_tasks(data=Body(...)):
     amount = int(data['amount'])
@@ -27,6 +32,15 @@ def run_tasks(data=Body(...)):
     y = data['y']
     task = create_task.delay(amount, x, y)
     return JSONResponse(content={'task_id': task.id})
+
+# Legal document endpoints
+@app.get("/privacy-policy")
+async def privacy_policy():
+    return FileResponse("static/legal/privacy-policy.html")
+
+@app.get("/terms-of-service")
+async def terms_of_service():
+    return FileResponse("static/legal/terms-of-service.html")
 
 app.include_router(post_router)
 app.include_router(aiengine_router)
