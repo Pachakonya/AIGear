@@ -16,8 +16,11 @@ struct MapboxOutdoorMapView: UIViewRepresentable {
     class Coordinator: NSObject {
         var mapView: MapView?
         var polylineManager: PolylineAnnotationManager?
+        let viewModel: MapViewModel
+        var hasCenteredOnUser = false
 
-        override init() {
+        init(viewModel: MapViewModel) {
+            self.viewModel = viewModel
             super.init()
             NotificationCenter.default.addObserver(self, selector: #selector(centerMapNotification(_:)), name: .centerMapExternally, object: nil)
             NotificationCenter.default.addObserver(self, selector: #selector(drawRouteNotification(_:)), name: .drawRouteExternally, object: nil)
@@ -54,26 +57,27 @@ struct MapboxOutdoorMapView: UIViewRepresentable {
             RouteService().fetchRoute(from: origin, to: destination) { route, conditions in
                 guard let route = route else { return }
                 
-                if !conditions.isEmpty {
-                    for (i, c) in conditions.enumerated() {
-                        print("""
-                        ✅ Condition \(i + 1):
-                          surface=\(c.surface ?? "nil"),
-                          sac=\(c.sacScale ?? "nil"),
-                          visibility=\(c.trailVisibility ?? "nil"),
-                          incline=\(c.incline ?? "nil"),
-                          smoothness=\(c.smoothness ?? "nil"),
-                          bridge=\(c.bridge ?? "nil"),
-                          tunnel=\(c.tunnel ?? "nil"),
-                          ford=\(c.ford ?? "nil")
-                        """)
-                    }
-                } else {
-                    print("❌ No trail conditions found.")
-                }
+                // if !conditions.isEmpty {
+                //     for (i, c) in conditions.enumerated() {
+                //         print("""
+                //         ✅ Condition \(i + 1):
+                //           surface=\(c.surface ?? "nil"),
+                //           sac=\(c.sacScale ?? "nil"),
+                //           visibility=\(c.trailVisibility ?? "nil"),
+                //           incline=\(c.incline ?? "nil"),
+                //           smoothness=\(c.smoothness ?? "nil"),
+                //           bridge=\(c.bridge ?? "nil"),
+                //           tunnel=\(c.tunnel ?? "nil"),
+                //           ford=\(c.ford ?? "nil")
+                //         """)
+                //     }
+                // } else {
+                //     print("❌ No trail conditions found.")
+                // }
 
                 DispatchQueue.main.async { [weak self] in
                     guard let self = self else { return }
+                    self.viewModel.updateDifficulty(from: conditions)
                     self.drawRoute(route: route, on: mapView)
                 }
             }
@@ -115,7 +119,7 @@ struct MapboxOutdoorMapView: UIViewRepresentable {
     }
 
     func makeCoordinator() -> Coordinator {
-        return Coordinator()
+        return Coordinator(viewModel: viewModel)
     }
 
     func makeUIView(context: Context) -> MapView {
@@ -140,7 +144,7 @@ struct MapboxOutdoorMapView: UIViewRepresentable {
         let desiredStyle: StyleURI = is3D ? .satelliteStreets : .outdoors
         let currentStyle = uiView.mapboxMap.style.uri
 
-            // Switch style if needed
+        // Switch style if needed
         if currentStyle != desiredStyle {
             uiView.mapboxMap.loadStyleURI(desiredStyle)
 
@@ -158,16 +162,13 @@ struct MapboxOutdoorMapView: UIViewRepresentable {
             }
         }
 
-            // Set camera pitch
-        let pitch: CGFloat = is3D ? 65.0 : 0.0
-        let currentCamera = uiView.mapboxMap.cameraState
-        let updatedCamera = CameraOptions(
-            center: currentCamera.center,
-            zoom: currentCamera.zoom,
-            bearing: currentCamera.bearing,
-            pitch: pitch
-        )
-        uiView.mapboxMap.setCamera(to: updatedCamera)
+        // Center on user location only once
+        if let userLocation = viewModel.userLocation?.coordinate,
+           !context.coordinator.hasCenteredOnUser {
+            let camera = CameraOptions(center: userLocation, zoom: 13)
+            uiView.mapboxMap.setCamera(to: camera)
+            context.coordinator.hasCenteredOnUser = true
+        }
     }
 }
 

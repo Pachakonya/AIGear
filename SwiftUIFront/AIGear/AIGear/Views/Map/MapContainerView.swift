@@ -24,14 +24,17 @@ struct MapContainerView: View {
             VStack(spacing: 12) {
                 HStack {
                     // 📍 Location text
-                    VStack(spacing: 2) {
+                    VStack(alignment: .leading, spacing: 2) {
                         Text("Your Location")
                             .font(.caption)
                             .foregroundColor(.gray)
-                        Text("Uly Dala, 53a")
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            
+                        Text(viewModel.userAddress.isEmpty ? "Locating..." : viewModel.userAddress)
                             .font(.callout)
                             .fontWeight(.semibold)
                             .foregroundColor(.primary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
 
                     Spacer()
@@ -42,7 +45,7 @@ struct MapContainerView: View {
                             .stroke(Color.orange, lineWidth: 2)
                             .frame(width: 32, height: 32)
 
-                        Text("4")
+                        Text(viewModel.trailDifficulty != nil ? String(viewModel.trailDifficulty!) : "-")
                             .font(.subheadline)
                             .foregroundColor(.black)
                             .fontWeight(.bold)
@@ -144,8 +147,8 @@ struct MapContainerView: View {
 
             RouteService().fetchRoute(from: userCoordinate, to: destination) { route, conditions in
                 guard let route = route else { return }
-
                 DispatchQueue.main.async {
+                    viewModel.updateDifficulty(from: conditions)
                     NotificationCenter.default.post(name: .drawRouteExternally, object: route)
                 }
             }

@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct MainTabView: View {
-    @State private var selectedTab = 1 // Center tab (ChatBot) is default
+    @State private var selectedTab = 0 // Center tab (ChatBot) is default
 
     var body: some View {
         ZStack {

@@ -9,6 +9,8 @@ struct SignUpOrSignInView: View {
     @State private var isLoading = false
     @State private var errorMessage = ""
     @State private var showError = false
+    @State private var showTermsOfService = false
+    @State private var showPrivacyPolicy = false
     
     var body: some View {
         NavigationStack {
@@ -122,13 +124,13 @@ struct SignUpOrSignInView: View {
 
                         Spacer()
 
-                        // Legal text
-                        Text("By continuing you agree to our Terms of Service and Privacy Policy.")
-                            .font(.footnote)
-                            .foregroundColor(.white.opacity(0.7))
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 24)
-                            .padding(.bottom, geo.safeAreaInsets.bottom + 12)
+                        // Legal text with tappable links
+                        LegalNoticeView(
+                            onTOS: { showTermsOfService = true },
+                            onPP: { showPrivacyPolicy = true }
+                        )
+                        .padding(.horizontal, 24)
+                        .padding(.bottom, geo.safeAreaInsets.bottom + 12)
                     }
                     .frame(width: geo.size.width)
                 }
@@ -142,6 +144,13 @@ struct SignUpOrSignInView: View {
                     Button("OK") { }
                 } message: {
                     Text(errorMessage)
+                }
+                // Present TOS and PP as sheets
+                .sheet(isPresented: $showTermsOfService) {
+                    TermsOfServiceView()
+                }
+                .sheet(isPresented: $showPrivacyPolicy) {
+                    PrivacyPolicyView()
                 }
             }
         }
