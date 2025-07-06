@@ -5,16 +5,18 @@ import os
 
 class SMTPConfig(BaseSettings):
     """SMTP configuration for email verification"""
-    smtp_host: str = "smtp.gmail.com"
-    smtp_port: int = 587
-    smtp_user: EmailStr
+    smtp_host: str
+    smtp_port: int
+    smtp_user: str
     smtp_app_password: str
     smtp_use_tls: bool = True
     smtp_use_ssl: bool = False
     
-    class Config:
-        env_file = ".env"
-        env_prefix = "SMTP_"
+    model_config = {
+        "env_file": ".env",
+        "env_prefix": "SMTP_",
+        # "extra": "allow",
+    }
 
 class EmailVerificationConfig(BaseSettings):
     """Email verification configuration"""
