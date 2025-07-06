@@ -26,3 +26,20 @@ class TokenResponse(BaseModel):
 
 class MessageResponse(BaseModel):
     message: str
+
+# Email verification schemas
+class SendCodeRequest(BaseModel):
+    email: EmailStr
+
+class SendCodeResponse(BaseModel):
+    message: str
+    email: str
+
+class VerifyCodeRequest(BaseModel):
+    email: EmailStr
+    code: str
+
+class VerifyCodeResponse(BaseModel):
+    message: str
+    email: str
+    verified: bool

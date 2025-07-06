@@ -1,10 +1,19 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-from src.auth.schemas import UserCreate, UserLogin, UserVerify, TokenResponse, UserResponse
+from src.auth.schemas import (
+    UserCreate, UserLogin, UserVerify, TokenResponse, UserResponse,
+    SendCodeRequest, SendCodeResponse, VerifyCodeRequest, VerifyCodeResponse
+)
 from src.auth.service import create_user, authenticate_user, verify_user, delete_user_account
 from src.auth.utils import create_access_token
 from src.auth.dependencies import get_current_user
+from src.auth.verification_service import verification_service
+from src.auth.email_service import email_service
+from src.auth.exceptions import (
+    EmailVerificationError, CodeExpiredError, InvalidCodeError, 
+    EmailSendError, TooManyAttemptsError
+)
 from src.database import get_db
 from src.auth.models import User
 from google.oauth2 import id_token
@@ -74,3 +83,78 @@ def google_auth(data: dict = Body(...), db: Session = Depends(get_db)):
         )
     except Exception as e:
         raise HTTPException(status_code=400, detail="Invalid Google token")
+
+# Email verification endpoints
+@router.post("/send-code", response_model=SendCodeResponse, status_code=200)
+async def send_verification_code(request: SendCodeRequest):
+    """Send a verification code to the provided email address"""
+    try:
+        # Generate and store verification code
+        code = await verification_service.generate_and_store_code(request.email)
+        
+        # Send email with verification code
+        await email_service.send_verification_email(request.email, code)
+        
+        return SendCodeResponse(
+            message="Verification code sent successfully",
+            email=request.email
+        )
+        
+    except TooManyAttemptsError as e:
+        raise HTTPException(
+            status_code=429, 
+            detail=str(e)
+        )
+    except EmailSendError as e:
+        # Clean up the stored code if email sending fails
+        await verification_service.delete_code(request.email)
+        raise HTTPException(
+            status_code=500, 
+            detail="Failed to send verification email. Please try again."
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, 
+            detail="An unexpected error occurred"
+        )
+
+@router.post("/verify-code", response_model=VerifyCodeResponse, status_code=200)
+async def verify_code(request: VerifyCodeRequest):
+    """Verify the provided code for the email address"""
+    try:
+        # Verify the code
+        is_valid = await verification_service.verify_code(request.email, request.code)
+        
+        if is_valid:
+            return VerifyCodeResponse(
+                message="Code verified successfully",
+                email=request.email,
+                verified=True
+            )
+        else:
+            return VerifyCodeResponse(
+                message="Invalid verification code",
+                email=request.email,
+                verified=False
+            )
+            
+    except CodeExpiredError as e:
+        raise HTTPException(
+            status_code=400, 
+            detail=str(e)
+        )
+    except InvalidCodeError as e:
+        raise HTTPException(
+            status_code=400, 
+            detail=str(e)
+        )
+    except TooManyAttemptsError as e:
+        raise HTTPException(
+            status_code=429, 
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, 
+            detail="An unexpected error occurred"
+        )
