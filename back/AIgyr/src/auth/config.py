@@ -12,6 +12,7 @@ class SMTPConfig(BaseSettings):
 
     model_config = {
         "env_prefix": "SMTP_",
+        "extra": "ignore"
     }
 
 # Redis Config
@@ -23,6 +24,7 @@ class RedisConfig(BaseSettings):
 
     model_config = {
         "env_prefix": "REDIS_",
+        "extra": "ignore"
     }
 
 # JWT Config
@@ -33,6 +35,7 @@ class JWTConfig(BaseSettings):
 
     model_config = {
         "env_prefix": "",
+        "extra": "ignore"
     }
 
 # Email Verification Config
@@ -53,6 +56,7 @@ class EmailVerificationConfig(BaseSettings):
 
     model_config = {
         "env_prefix": "EMAIL_VERIFICATION_",
+        "extra": "ignore"
     }
 
 # Global config instances
