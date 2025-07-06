@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI, Body
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -36,11 +37,13 @@ def run_tasks(data=Body(...)):
 # Legal document endpoints
 @app.get("/privacy-policy")
 async def privacy_policy():
-    return FileResponse("static/legal/privacy-policy.html")
+    file_path = os.path.join(os.path.dirname(__file__), "..", "static", "legal", "privacy-policy.html")
+    return FileResponse(file_path)
 
 @app.get("/terms-of-service")
 async def terms_of_service():
-    return FileResponse("static/legal/terms-of-service.html")
+    file_path = os.path.join(os.path.dirname(__file__), "..", "static", "legal", "terms-of-service.html")
+    return FileResponse(file_path)
 
 app.include_router(post_router)
 app.include_router(aiengine_router)

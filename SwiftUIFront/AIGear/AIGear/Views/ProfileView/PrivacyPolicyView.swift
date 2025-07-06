@@ -1,10 +1,13 @@
 import SwiftUI
 
 struct PrivacyPolicyView: View {
-    // Update this URL to match your backend server address
-    private let privacyPolicyURL = URL(string: "http://aigear.tech/privacy-policy")!
+    // Production URL
+    private let privacyPolicyURL = URL(string: "https://aigear.tech/privacy-policy")!
     
     var body: some View {
         WebViewWithTitle(title: "Privacy Policy", url: privacyPolicyURL)
+            .onAppear {
+                print("PrivacyPolicyView appeared with URL: \(privacyPolicyURL)")
+            }
     }
 }

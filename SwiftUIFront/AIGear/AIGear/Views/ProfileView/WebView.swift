@@ -6,6 +6,7 @@ struct WebView: UIViewRepresentable {
     
     func makeUIView(context: Context) -> WKWebView {
         let webView = WKWebView()
+        print("WebView loading URL: \(url)")
         webView.load(URLRequest(url: url))
         return webView
     }
@@ -20,10 +21,8 @@ struct WebViewWithTitle: View {
     let url: URL
     
     var body: some View {
-        NavigationView {
-            WebView(url: url)
-                .navigationTitle(title)
-                .navigationBarTitleDisplayMode(.inline)
-        }
+        WebView(url: url)
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
     }
 } 
