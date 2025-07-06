@@ -1,25 +1,42 @@
 from pydantic_settings import BaseSettings
 from pydantic import EmailStr
-from typing import Optional
-import os
 
+# SMTP Config
 class SMTPConfig(BaseSettings):
-    """SMTP configuration for email verification"""
-    smtp_host: str
-    smtp_port: int
-    smtp_user: str
+    smtp_host: str = "smtp.gmail.com"
+    smtp_port: int = 587
+    smtp_user: EmailStr
     smtp_app_password: str
     smtp_use_tls: bool = True
     smtp_use_ssl: bool = False
-    
+
     model_config = {
-        "env_file": ".env",
         "env_prefix": "SMTP_",
-        "extra": "allow",
     }
 
+# Redis Config
+class RedisConfig(BaseSettings):
+    redis_host: str = "localhost"
+    redis_port: int = 6379
+    redis_db: int = 1
+    redis_password: str = ""
+
+    model_config = {
+        "env_prefix": "REDIS_",
+    }
+
+# JWT Config
+class JWTConfig(BaseSettings):
+    secret_key: str
+    algorithm: str = "HS256"
+    access_token_expire_minutes: int = 10080
+
+    model_config = {
+        "env_prefix": "",
+    }
+
+# Email Verification Config
 class EmailVerificationConfig(BaseSettings):
-    """Email verification configuration"""
     verification_code_length: int = 6
     verification_code_expiry_minutes: int = 10
     email_subject: str = "Your Verification Code"
@@ -33,11 +50,13 @@ class EmailVerificationConfig(BaseSettings):
     </body>
     </html>
     """
-    
-    class Config:
-        env_file = ".env"
-        env_prefix = "EMAIL_VERIFICATION_"
 
-# Global instances
+    model_config = {
+        "env_prefix": "EMAIL_VERIFICATION_",
+    }
+
+# Global config instances
 smtp_config = SMTPConfig()
+redis_config = RedisConfig()
+jwt_config = JWTConfig()
 email_verification_config = EmailVerificationConfig()
