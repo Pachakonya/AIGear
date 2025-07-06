@@ -15,7 +15,7 @@ class SMTPConfig(BaseSettings):
     model_config = {
         "env_file": ".env",
         "env_prefix": "SMTP_",
-        # "extra": "allow",
+        "extra": "allow",
     }
 
 class EmailVerificationConfig(BaseSettings):
