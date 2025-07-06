@@ -17,3 +17,4 @@ pydantic[email]
 google-auth
 requests
 aiosmtplib
+pydantic_settings
