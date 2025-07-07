@@ -11,6 +11,8 @@ struct SignUpOrSignInView: View {
     @State private var showError = false
     @State private var showTermsOfService = false
     @State private var showPrivacyPolicy = false
+    @State private var appleSignInCoordinator = AppleSignInCoordinator()
+    @StateObject private var viewModel = AuthOptionsViewModel()
     
     var body: some View {
         NavigationStack {
@@ -39,34 +41,46 @@ struct SignUpOrSignInView: View {
                         // Login card with blur and buttons
                         VStack(spacing: 20) {
                             // Apple Sign-In Button
-                            SignInWithAppleButton(
-                                .signIn,
-                                onRequest: { request in
-                                    request.requestedScopes = [.fullName, .email]
-                                },
-                                onCompletion: { result in
-                                    switch result {
-                                    case .success(let authResults):
-                                        print("Apple sign in success: \(authResults)")
-                                        AuthService.shared.isAuthenticated = true
-                                    case .failure(let error):
-                                        print("Apple sign in failed: \(error.localizedDescription)")
-                                    }
+                            Button(action: {
+                                viewModel.handleAppleSignIn { success in
+                                    // Optionally handle completion
                                 }
-                            )
-                            .signInWithAppleButtonStyle(.white)
-                            .frame(height: 52)
-                            .frame(maxWidth: .infinity)
-                            .cornerRadius(18)
-                            .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 4)
+                            }) {
+                                HStack(spacing: 12) {
+                                    Image(systemName: "apple.logo")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 24, height: 24)
+                                        .foregroundColor(.black)
+                                    
+                                    Text("Continue with Apple")
+                                        .font(.system(size: 18, weight: .semibold, design: .rounded))
+                                        .foregroundColor(.black)
+                                }
+                                .frame(height: 52)
+                                .frame(maxWidth: .infinity)
+                                .background(.white, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                                .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 4)
+                            }
                             .padding(.horizontal, 8)
 
                             // Google Sign-In Button
-                            Button(action: handleGoogleSignIn) {
+                            Button(action: {
+                                guard let windowScene = UIApplication.shared.connectedScenes
+                                        .compactMap({ $0 as? UIWindowScene })
+                                        .first(where: { $0.activationState == .foregroundActive }),
+                                      let rootViewController = windowScene.windows
+                                        .first(where: { $0.isKeyWindow })?.rootViewController else { return }
+                                viewModel.handleGoogleSignIn(presentingViewController: rootViewController) { success in
+                                    // Optionally handle completion
+                                }
+                            }) {
                                 HStack(spacing: 12) {
                                     Image("g_logo") // Add a Google logo PNG to your assets
                                         .resizable()
                                         .frame(width: 24, height: 24)
+                                    
                                     Text("Continue with Google")
                                         .font(.system(size: 18, weight: .semibold, design: .rounded))
                                         .foregroundColor(.black)
@@ -167,10 +181,10 @@ struct SignUpOrSignInView: View {
                 .navigationDestination(isPresented: $showSignUp) {
                     SignUpView()
                 }
-                .alert("Error", isPresented: $showError) {
-                    Button("OK") { }
+                .alert("Error", isPresented: $viewModel.showError) {
+                    Button("OK") { viewModel.showError = false }
                 } message: {
-                    Text(errorMessage)
+                    Text(viewModel.errorMessage ?? "")
                 }
                 // Present TOS and PP as sheets
                 .fullScreenCover(isPresented: $showTermsOfService) {
@@ -196,29 +210,8 @@ struct SignUpOrSignInView: View {
             }
         }
     }
+}
 
-    func handleGoogleSignIn() {
-        guard let windowScene = UIApplication.shared.connectedScenes
-                .compactMap({ $0 as? UIWindowScene })
-                .first(where: { $0.activationState == .foregroundActive }),
-              let rootViewController = windowScene.windows
-                .first(where: { $0.isKeyWindow })?.rootViewController else { return }
-        isLoading = true
-        GIDSignIn.sharedInstance.signIn(withPresenting: rootViewController) { signInResult, error in
-            isLoading = false
-            // if let error = error {
-            //     errorMessage = "Google Sign-In error: \(error.localizedDescription)"
-            //     showError = true
-            //     return
-            // }
-            guard let idToken = signInResult?.user.idToken?.tokenString else {
-                errorMessage = "No Google ID token"
-                showError = true
-                return
-            }
-            Task {
-                await AuthService.shared.signInWithGoogle(idToken: idToken)
-            }
-        }
-    }
+#Preview {
+    SignUpOrSignInView()
 }
