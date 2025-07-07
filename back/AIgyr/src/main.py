@@ -11,7 +11,7 @@ from src.auth.router import router as auth_router
 
 from celery_app import create_task
 
-Base.metadata.create_all(bind=engine)
+# Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
