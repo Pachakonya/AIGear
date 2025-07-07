@@ -28,6 +28,16 @@ struct VerificationRequest: Codable {
     let code: String
 }
 
+struct VerifyCodeResponse: Codable {
+    let message: String
+    let email: String
+    let verified: Bool
+}
+
+struct MessageResponse: Codable {
+    let message: String
+}
+
 class AuthService: ObservableObject {
     static let shared = AuthService()
     
@@ -133,34 +143,20 @@ class AuthService: ObservableObject {
         }
     }
     
-    func verifyEmail(email: String, code: String) async throws -> Bool {
-        await setLoading(true)
-        defer { Task { @MainActor in self.setLoading(false) } }
-        
-        guard let url = URL(string: "\(baseURL)/auth/verify") else {
+    func sendVerificationCode(email: String) async throws -> Bool {
+        guard let url = URL(string: "\(baseURL)/auth/send-code") else {
             throw AuthError.invalidURL
         }
-        
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        
-        let verifyRequest = VerificationRequest(email: email, code: code)
-        request.httpBody = try JSONEncoder().encode(verifyRequest)
-        
-        let (data, response) = try await URLSession.shared.data(for: request)
-        
+        let body = ["email": email]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        let (_, response) = try await URLSession.shared.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
             throw AuthError.networkError
         }
-        
-        if httpResponse.statusCode == 200 {
-            let authResponse = try JSONDecoder().decode(AuthResponse.self, from: data)
-            storeAuth(token: authResponse.access_token, user: authResponse.user)
-            return true
-        } else {
-            throw AuthError.verificationFailed
-        }
+        return httpResponse.statusCode == 200
     }
     
     func signOut() {
@@ -189,6 +185,30 @@ class AuthService: ObservableObject {
         }
     }
     
+    func verifyCode(email: String, code: String) async throws -> Bool {
+        guard let url = URL(string: "\(baseURL)/auth/verify-code") else {
+            throw AuthError.invalidURL
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let body = ["email": email, "code": code]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw AuthError.networkError
+        }
+        if httpResponse.statusCode == 200 {
+            let verifyResponse = try JSONDecoder().decode(VerifyCodeResponse.self, from: data)
+            return verifyResponse.verified
+        } else if httpResponse.statusCode == 400 || httpResponse.statusCode == 429 {
+            let errorMsg = (try? JSONDecoder().decode(MessageResponse.self, from: data).message) ?? "Verification failed"
+            throw AuthError.custom(errorMsg)
+        } else {
+            throw AuthError.verificationFailed
+        }
+    }
+    
     @MainActor
     private func setLoading(_ value: Bool) {
         self.isLoading = value
@@ -201,6 +221,7 @@ enum AuthError: Error, LocalizedError {
     case invalidCredentials
     case registrationFailed
     case verificationFailed
+    case custom(String)
     
     var errorDescription: String? {
         switch self {
@@ -214,6 +235,8 @@ enum AuthError: Error, LocalizedError {
             return "Registration failed"
         case .verificationFailed:
             return "Email verification failed"
+        case .custom(let message):
+            return message
         }
     }
 } 

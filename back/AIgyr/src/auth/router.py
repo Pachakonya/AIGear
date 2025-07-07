@@ -107,13 +107,18 @@ async def send_verification_code(request: SendCodeRequest):
         )
 
 @router.post("/verify-code", response_model=VerifyCodeResponse, status_code=200)
-async def verify_code(request: VerifyCodeRequest):
+async def verify_code(request: VerifyCodeRequest, db: Session = Depends(get_db)):
     """Verify the provided code for the email address"""
     try:
-        # Verify the code
+        # Verify the code in Redis
         is_valid = await verification_service.verify_code(request.email, request.code)
-        
         if is_valid:
+            # Set user.is_verified = True in PostgreSQL
+            user = db.query(User).filter(User.email == request.email).first()
+            if user:
+                user.is_verified = True
+                db.commit()
+                db.refresh(user)
             return VerifyCodeResponse(
                 message="Code verified successfully",
                 email=request.email,
@@ -125,7 +130,6 @@ async def verify_code(request: VerifyCodeRequest):
                 email=request.email,
                 verified=False
             )
-            
     except CodeExpiredError as e:
         raise HTTPException(
             status_code=400, 

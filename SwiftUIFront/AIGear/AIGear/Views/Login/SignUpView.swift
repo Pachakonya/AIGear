@@ -124,8 +124,15 @@ struct SignUpView: View {
                 username: username.isEmpty ? nil : username
             )
             if success {
-                isVerifying = true
-                print("✅ Registration successful. Please verify your email.")
+                // Send verification code after successful registration
+                let codeSent = try await authService.sendVerificationCode(email: email)
+                if codeSent {
+                    isVerifying = true
+                    print("✅ Registration successful. Verification code sent. Please check your email.")
+                } else {
+                    errorMessage = "Failed to send verification code."
+                    showError = true
+                }
             }
         } catch {
             errorMessage = error.localizedDescription
@@ -136,9 +143,13 @@ struct SignUpView: View {
 
     func verify() async {
         do {
-            let success = try await authService.verifyEmail(email: email, code: code)
+            let success = try await authService.verifyCode(email: email, code: code)
             if success {
                 print("✅ Verification complete. User authenticated.")
+                // Optionally, you can update UI or navigate to the next screen here
+            } else {
+                errorMessage = "Invalid or expired verification code."
+                showError = true
             }
         } catch {
             errorMessage = error.localizedDescription
