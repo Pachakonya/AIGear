@@ -1,76 +1,36 @@
-import aiosmtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from typing import Optional
-from .config import (
-    SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_APP_PASSWORD, SMTP_USE_TLS,
-    EMAIL_VERIFICATION_EMAIL_SUBJECT, EMAIL_VERIFICATION_EMAIL_TEMPLATE, EMAIL_VERIFICATION_CODE_EXPIRY_MINUTES
-)
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
+import os
+from .config import SENDGRID_API_KEY, SENDGRID_FROM_EMAIL, EMAIL_VERIFICATION_EMAIL_SUBJECT, EMAIL_VERIFICATION_EMAIL_TEMPLATE, EMAIL_VERIFICATION_CODE_EXPIRY_MINUTES
 from .exceptions import EmailSendError
 
 class EmailService:
     def __init__(self):
-        self.smtp_host = SMTP_HOST
-        self.smtp_port = SMTP_PORT
-        self.smtp_user = SMTP_USER
-        self.smtp_password = SMTP_APP_PASSWORD
-        self.smtp_use_tls = SMTP_USE_TLS
-    
+        self.api_key = SENDGRID_API_KEY
+        self.from_email = SENDGRID_FROM_EMAIL
+
     async def send_verification_email(self, to_email: str, code: str) -> bool:
         """Send verification code email asynchronously"""
         try:
-            # Create message
-            message = MIMEMultipart("alternative")
-            message["Subject"] = EMAIL_VERIFICATION_EMAIL_SUBJECT
-            message["From"] = f"AIgyr Verification <{self.smtp_user}>"
-            message["To"] = to_email
-            
-            # Create HTML content
             html_content = EMAIL_VERIFICATION_EMAIL_TEMPLATE.format(
                 code=code,
                 expiry_minutes=EMAIL_VERIFICATION_CODE_EXPIRY_MINUTES
             )
-            
-            # Create plain text content
-            text_content = f"""
-            Email Verification
-            
-            Your verification code is: {code}
-            
-            This code will expire in {EMAIL_VERIFICATION_CODE_EXPIRY_MINUTES} minutes.
-            
-            If you didn't request this code, please ignore this email.
-            """
-            
-            # Attach parts
-            text_part = MIMEText(text_content, "plain")
-            html_part = MIMEText(html_content, "html")
-            
-            message.attach(text_part)
-            message.attach(html_part)
-            
-            # Send email
-            await self._send_email(message)
-            return True
-            
+            message = Mail(
+                from_email=self.from_email,
+                to_emails=to_email,
+                subject=EMAIL_VERIFICATION_EMAIL_SUBJECT,
+                html_content=html_content
+            )
+            sg = SendGridAPIClient(self.api_key)
+            response = sg.send(message)
+            if response.status_code >= 200 and response.status_code < 300:
+                return True
+            else:
+                raise EmailSendError(f"SendGrid error: {response.status_code} {response.body}")
         except Exception as e:
             print("EMAIL ERROR:", e)
             raise EmailSendError(f"Failed to send verification email: {str(e)}")
-    
-    async def _send_email(self, message: MIMEMultipart):
-        """Send email using aiosmtplib (with start_tls for TLS)"""
-        try:
-            await aiosmtplib.send(
-                message,
-                hostname=self.smtp_host,
-                port=self.smtp_port,
-                username=self.smtp_user,
-                password=self.smtp_password,
-                start_tls=self.smtp_use_tls
-            )
-        except Exception as e:
-            print("EMAIL ERROR:", e)
-            raise EmailSendError(f"SMTP error: {str(e)}")
     
     async def send_custom_email(
         self, 
@@ -83,7 +43,7 @@ class EmailService:
         try:
             message = MIMEMultipart("alternative")
             message["Subject"] = subject
-            message["From"] = f"AIgyr Verification <{self.smtp_user}>"
+            message["From"] = f"AIgyr Verification <{self.from_email}>"
             message["To"] = to_email
             
             if text_content:
