@@ -1,7 +1,9 @@
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
-from src.posts.models import Base
+from src.database import Base
+from src.auth.models import User
+from src.posts.models import Post, TrailData
 
 from logging.config import fileConfig
 
