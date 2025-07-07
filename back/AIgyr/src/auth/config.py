@@ -10,13 +10,9 @@ def get_bool(var, default=False):
         return default
     return val.lower() in ("1", "true", "yes", "on")
 
-# --- SMTP Config ---
-SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
-SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
-SMTP_USER = os.getenv("SMTP_USER")
-SMTP_APP_PASSWORD = os.getenv("SMTP_APP_PASSWORD")
-SMTP_USE_TLS = get_bool("SMTP_USE_TLS", True)
-SMTP_USE_SSL = get_bool("SMTP_USE_SSL", False)
+# --- SendGrid Config ---
+SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
+SENDGRID_FROM_EMAIL = os.getenv("SENDGRID_FROM_EMAIL")
 
 # --- Redis Config ---
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
