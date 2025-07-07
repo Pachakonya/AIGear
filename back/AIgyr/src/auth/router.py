@@ -24,7 +24,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 @router.post("/register", response_model=UserResponse, status_code=201)
 def register(user: UserCreate, db: Session = Depends(get_db)):
     try:
-        db_user, code = create_user(db, user.email, user.password, user.username)
+        db_user = create_user(db, user.email, user.password, user.username)
     except IntegrityError:
         db.rollback()
         raise HTTPException(status_code=409, detail="Email already exists")
