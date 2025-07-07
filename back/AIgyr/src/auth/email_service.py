@@ -1,8 +1,9 @@
 from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail
+from sendgrid.helpers.mail import Mail, Email, To, Content
 import os
 from .config import SENDGRID_API_KEY, SENDGRID_FROM_EMAIL, EMAIL_VERIFICATION_EMAIL_SUBJECT, EMAIL_VERIFICATION_EMAIL_TEMPLATE, EMAIL_VERIFICATION_CODE_EXPIRY_MINUTES
 from .exceptions import EmailSendError
+from typing import Optional
 
 class EmailService:
     def __init__(self):
@@ -39,23 +40,30 @@ class EmailService:
         html_content: str, 
         text_content: Optional[str] = None
     ) -> bool:
-        """Send a custom email"""
+        """Send a custom email using SendGrid"""
         try:
-            message = MIMEMultipart("alternative")
-            message["Subject"] = subject
-            message["From"] = f"AIgyr Verification <{self.from_email}>"
-            message["To"] = to_email
-            
+            # If text_content is provided, include both plain and HTML parts
             if text_content:
-                text_part = MIMEText(text_content, "plain")
-                message.attach(text_part)
-            
-            html_part = MIMEText(html_content, "html")
-            message.attach(html_part)
-            
-            await self._send_email(message)
-            return True
-            
+                message = Mail(
+                    from_email=self.from_email,
+                    to_emails=to_email,
+                    subject=subject,
+                    plain_text_content=text_content,
+                    html_content=html_content
+                )
+            else:
+                message = Mail(
+                    from_email=self.from_email,
+                    to_emails=to_email,
+                    subject=subject,
+                    html_content=html_content
+                )
+            sg = SendGridAPIClient(self.api_key)
+            response = sg.send(message)
+            if response.status_code >= 200 and response.status_code < 300:
+                return True
+            else:
+                raise EmailSendError(f"SendGrid error: {response.status_code} {response.body}")
         except Exception as e:
             print("EMAIL ERROR:", e)
             raise EmailSendError(f"Failed to send custom email: {str(e)}")
