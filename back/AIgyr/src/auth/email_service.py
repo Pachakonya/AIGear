@@ -3,7 +3,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Optional
 from .config import (
-    SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_APP_PASSWORD, SMTP_USE_TLS, SMTP_USE_SSL,
+    SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_APP_PASSWORD, SMTP_USE_TLS,
     EMAIL_VERIFICATION_EMAIL_SUBJECT, EMAIL_VERIFICATION_EMAIL_TEMPLATE, EMAIL_VERIFICATION_CODE_EXPIRY_MINUTES
 )
 from .exceptions import EmailSendError
@@ -15,7 +15,6 @@ class EmailService:
         self.smtp_user = SMTP_USER
         self.smtp_password = SMTP_APP_PASSWORD
         self.smtp_use_tls = SMTP_USE_TLS
-        self.smtp_use_ssl = SMTP_USE_SSL
     
     async def send_verification_email(self, to_email: str, code: str) -> bool:
         """Send verification code email asynchronously"""
@@ -59,29 +58,18 @@ class EmailService:
             raise EmailSendError(f"Failed to send verification email: {str(e)}")
     
     async def _send_email(self, message: MIMEMultipart):
-        """Send email using aiosmtplib"""
+        """Send email using aiosmtplib (with start_tls for TLS)"""
         try:
-            if self.smtp_use_ssl:
-                await aiosmtplib.send(
-                    message,
-                    hostname=self.smtp_host,
-                    port=self.smtp_port,
-                    username=self.smtp_user,
-                    password=self.smtp_password,
-                    use_tls=False,
-                    use_ssl=True
-                )
-            else:
-                await aiosmtplib.send(
-                    message,
-                    hostname=self.smtp_host,
-                    port=self.smtp_port,
-                    username=self.smtp_user,
-                    password=self.smtp_password,
-                    use_tls=self.smtp_use_tls,
-                    use_ssl=False
-                )
+            await aiosmtplib.send(
+                message,
+                hostname=self.smtp_host,
+                port=self.smtp_port,
+                username=self.smtp_user,
+                password=self.smtp_password,
+                start_tls=self.smtp_use_tls
+            )
         except Exception as e:
+            print("EMAIL ERROR:", e)
             raise EmailSendError(f"SMTP error: {str(e)}")
     
     async def send_custom_email(
@@ -109,6 +97,7 @@ class EmailService:
             return True
             
         except Exception as e:
+            print("EMAIL ERROR:", e)
             raise EmailSendError(f"Failed to send custom email: {str(e)}")
 
 # Global instance
