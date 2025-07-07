@@ -177,9 +177,13 @@ struct SignUpOrSignInView: View {
                 }
                 .navigationDestination(isPresented: $showSignIn) {
                     SignInView()
+                        .navigationBarBackButtonHidden(false)
+                        .navigationBarTitleDisplayMode(.inline)
                 }
                 .navigationDestination(isPresented: $showSignUp) {
                     SignUpView()
+                        .navigationBarBackButtonHidden(false)
+                        .navigationBarTitleDisplayMode(.inline)
                 }
                 .alert("Error", isPresented: $viewModel.showError) {
                     Button("OK") { viewModel.showError = false }
@@ -209,6 +213,7 @@ struct SignUpOrSignInView: View {
                 }
             }
         }
+        .tint(.black)
     }
 }
 
