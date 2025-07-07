@@ -5,7 +5,7 @@ from src.auth.schemas import (
     UserCreate, UserLogin, UserVerify, TokenResponse, UserResponse,
     SendCodeRequest, SendCodeResponse, VerifyCodeRequest, VerifyCodeResponse
 )
-from src.auth.service import create_user, authenticate_user, verify_user, delete_user_account
+from src.auth.service import create_user, authenticate_user, delete_user_account
 from src.auth.utils import create_access_token
 from src.auth.dependencies import get_current_user
 from src.auth.verification_service import verification_service
