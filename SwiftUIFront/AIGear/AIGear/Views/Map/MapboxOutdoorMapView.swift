@@ -136,6 +136,9 @@ struct MapboxOutdoorMapView: UIViewRepresentable {
         mapView.location.options.puckType = .puck2D()
         mapView.location.options.puckBearingEnabled = true
         mapView.location.options.activityType = .fitness
+        
+        mapView.ornaments.options.compass.visibility = .hidden
+        mapView.ornaments.options.scaleBar.visibility = .hidden
        
         return mapView
     }

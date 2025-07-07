@@ -38,27 +38,28 @@ struct SignUpOrSignInView: View {
 
                         // Login card with blur and buttons
                         VStack(spacing: 20) {
-                            // // Apple Sign-In Button
-                            // SignInWithAppleButton(
-                            //     .signIn,
-                            //     onRequest: { request in
-                            //         request.requestedScopes = [.fullName, .email]
-                            //     },
-                            //     onCompletion: { result in
-                            //         switch result {
-                            //         case .success(let authResults):
-                            //             print("Apple sign in success: \(authResults)")
-                            //         case .failure(let error):
-                            //             print("Apple sign in failed: \(error.localizedDescription)")
-                            //         }
-                            //     }
-                            // )
-                            // .signInWithAppleButtonStyle(.white)
-                            // .frame(height: 52)
-                            // .frame(maxWidth: .infinity)
-                            // .cornerRadius(18)
-                            // .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 4)
-                            // .padding(.horizontal, 8)
+                            // Apple Sign-In Button
+                            SignInWithAppleButton(
+                                .signIn,
+                                onRequest: { request in
+                                    request.requestedScopes = [.fullName, .email]
+                                },
+                                onCompletion: { result in
+                                    switch result {
+                                    case .success(let authResults):
+                                        print("Apple sign in success: \(authResults)")
+                                        AuthService.shared.isAuthenticated = true
+                                    case .failure(let error):
+                                        print("Apple sign in failed: \(error.localizedDescription)")
+                                    }
+                                }
+                            )
+                            .signInWithAppleButtonStyle(.white)
+                            .frame(height: 52)
+                            .frame(maxWidth: .infinity)
+                            .cornerRadius(18)
+                            .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 4)
+                            .padding(.horizontal, 8)
 
                             // Google Sign-In Button
                             Button(action: handleGoogleSignIn) {
@@ -123,16 +124,42 @@ struct SignUpOrSignInView: View {
                         .padding(.horizontal, 16) 
 
                         Spacer()
+                    }
+                    .frame(width: geo.size.width)
+                    .padding(.bottom, 60)
 
-                        // Legal text with tappable links
-                        LegalNoticeView(
-                            onTOS: { showTermsOfService = true },
-                            onPP: { showPrivacyPolicy = true }
-                        )
+                    // Overlay the legal notice at the bottom
+                    VStack {
+                        Spacer()
+                        VStack {
+                            Text("By continuing to use AIGear, you agree to our")
+                                .font(.footnote)
+                                .foregroundColor(.white.opacity(0.7))
+                                .multilineTextAlignment(.center)
+                            HStack(spacing: 4) {
+                                Button(action: { showTermsOfService = true }) {
+                                    Text("Terms of Service")
+                                        .font(.footnote)
+                                        .underline()
+                                        .foregroundColor(.white.opacity(0.7))
+                                }
+                                Text("and")
+                                    .font(.footnote)
+                                    .foregroundColor(.white.opacity(0.7))
+                                Button(action: { showPrivacyPolicy = true }) {
+                                    Text("Privacy Policy")
+                                        .font(.footnote)
+                                        .underline()
+                                        .foregroundColor(.white.opacity(0.7))
+                                }
+                                Text(".")
+                                    .font(.footnote)
+                                    .foregroundColor(.white.opacity(0.7))
+                            }
+                        }
                         .padding(.horizontal, 24)
                         .padding(.bottom, geo.safeAreaInsets.bottom + 12)
                     }
-                    .frame(width: geo.size.width)
                 }
                 .navigationDestination(isPresented: $showSignIn) {
                     SignInView()
@@ -146,11 +173,25 @@ struct SignUpOrSignInView: View {
                     Text(errorMessage)
                 }
                 // Present TOS and PP as sheets
-                .sheet(isPresented: $showTermsOfService) {
-                    TermsOfServiceView()
+                .fullScreenCover(isPresented: $showTermsOfService) {
+                    NavigationView {
+                        TermsOfServiceView()
+                            .toolbar {
+                                ToolbarItem(placement: .cancellationAction) {
+                                    Button("Close") { showTermsOfService = false }
+                                }
+                            }
+                    }
                 }
-                .sheet(isPresented: $showPrivacyPolicy) {
-                    PrivacyPolicyView()
+                .fullScreenCover(isPresented: $showPrivacyPolicy) {
+                    NavigationView {
+                        PrivacyPolicyView()
+                            .toolbar {
+                                ToolbarItem(placement: .cancellationAction) {
+                                    Button("Close") { showPrivacyPolicy = false }
+                                }
+                            }
+                    }
                 }
             }
         }
@@ -165,11 +206,11 @@ struct SignUpOrSignInView: View {
         isLoading = true
         GIDSignIn.sharedInstance.signIn(withPresenting: rootViewController) { signInResult, error in
             isLoading = false
-            if let error = error {
-                errorMessage = "Google Sign-In error: \(error.localizedDescription)"
-                showError = true
-                return
-            }
+            // if let error = error {
+            //     errorMessage = "Google Sign-In error: \(error.localizedDescription)"
+            //     showError = true
+            //     return
+            // }
             guard let idToken = signInResult?.user.idToken?.tokenString else {
                 errorMessage = "No Google ID token"
                 showError = true

@@ -8,6 +8,8 @@ struct SignInView: View {
     @State private var errorMessage = ""
     @State private var showError = false
     @StateObject private var authService = AuthService.shared
+    @State private var showTermsOfService = false
+    @State private var showPrivacyPolicy = false
 
     var body: some View {
         GeometryReader { geo in
@@ -71,20 +73,43 @@ struct SignInView: View {
                     .padding(.horizontal, 16)
                     
                     Spacer()
-                    
-                    Text("By continuing you agree to our Terms of Service and Privacy Policy.")
-                        .font(.footnote)
-                        .foregroundColor(.white.opacity(0.7))
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 24)
-                        .padding(.bottom, geo.safeAreaInsets.bottom + 12)
                 }
                 .frame(width: geo.size.width)
+                .padding(.bottom, 60)
+                // Overlay the legal notice at the bottom
+                VStack {
+                    Spacer()
+                    LegalNoticeView(
+                        onTOS: { showTermsOfService = true },
+                        onPP: { showPrivacyPolicy = true }
+                    )
+                    .padding(.bottom, geo.safeAreaInsets.bottom)
+                }
             }
             .alert("Error", isPresented: $showError) {
                 Button("OK") { }
             } message: {
                 Text(errorMessage)
+            }
+        }
+        .fullScreenCover(isPresented: $showTermsOfService) {
+            NavigationView {
+                TermsOfServiceView()
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Close") { showTermsOfService = false }
+                        }
+                    }
+            }
+        }
+        .fullScreenCover(isPresented: $showPrivacyPolicy) {
+            NavigationView {
+                PrivacyPolicyView()
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Close") { showPrivacyPolicy = false }
+                        }
+                    }
             }
         }
     }
