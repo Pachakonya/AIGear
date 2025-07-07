@@ -43,18 +43,6 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
         user=UserResponse(id=db_user.id, email=db_user.email, username=db_user.username)
     )
 
-@router.post("/verify", response_model=TokenResponse)
-def verify(user: UserVerify, db: Session = Depends(get_db)):
-    db_user = verify_user(db, user.email, user.code)
-    if not db_user:
-        raise HTTPException(status_code=400, detail="Invalid verification code")
-    token = create_access_token({"sub": db_user.id})
-    return TokenResponse(
-        access_token=token,
-        token_type="bearer",
-        user=UserResponse(id=db_user.id, email=db_user.email, username=db_user.username)
-    )
-
 @router.delete("/delete-account", summary="Delete current user account")
 def delete_account(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     delete_user_account(current_user, db)

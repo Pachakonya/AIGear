@@ -55,6 +55,7 @@ class EmailService:
             return True
             
         except Exception as e:
+            print("EMAIL ERROR:", e)
             raise EmailSendError(f"Failed to send verification email: {str(e)}")
     
     async def _send_email(self, message: MIMEMultipart):
