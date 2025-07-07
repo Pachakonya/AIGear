@@ -2,31 +2,34 @@ import aiosmtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Optional
-from .config import smtp_config, email_verification_config
+from .config import (
+    SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_APP_PASSWORD, SMTP_USE_TLS, SMTP_USE_SSL,
+    EMAIL_VERIFICATION_EMAIL_SUBJECT, EMAIL_VERIFICATION_EMAIL_TEMPLATE, EMAIL_VERIFICATION_CODE_EXPIRY_MINUTES
+)
 from .exceptions import EmailSendError
 
 class EmailService:
     def __init__(self):
-        self.smtp_host = smtp_config.smtp_host
-        self.smtp_port = smtp_config.smtp_port
-        self.smtp_user = smtp_config.smtp_user
-        self.smtp_password = smtp_config.smtp_app_password
-        self.smtp_use_tls = smtp_config.smtp_use_tls
-        self.smtp_use_ssl = smtp_config.smtp_use_ssl
+        self.smtp_host = SMTP_HOST
+        self.smtp_port = SMTP_PORT
+        self.smtp_user = SMTP_USER
+        self.smtp_password = SMTP_APP_PASSWORD
+        self.smtp_use_tls = SMTP_USE_TLS
+        self.smtp_use_ssl = SMTP_USE_SSL
     
     async def send_verification_email(self, to_email: str, code: str) -> bool:
         """Send verification code email asynchronously"""
         try:
             # Create message
             message = MIMEMultipart("alternative")
-            message["Subject"] = email_verification_config.email_subject
+            message["Subject"] = EMAIL_VERIFICATION_EMAIL_SUBJECT
             message["From"] = f"AIgyr Verification <{self.smtp_user}>"
             message["To"] = to_email
             
             # Create HTML content
-            html_content = email_verification_config.email_template.format(
+            html_content = EMAIL_VERIFICATION_EMAIL_TEMPLATE.format(
                 code=code,
-                expiry_minutes=email_verification_config.verification_code_expiry_minutes
+                expiry_minutes=EMAIL_VERIFICATION_CODE_EXPIRY_MINUTES
             )
             
             # Create plain text content
@@ -35,7 +38,7 @@ class EmailService:
             
             Your verification code is: {code}
             
-            This code will expire in {email_verification_config.verification_code_expiry_minutes} minutes.
+            This code will expire in {EMAIL_VERIFICATION_CODE_EXPIRY_MINUTES} minutes.
             
             If you didn't request this code, please ignore this email.
             """
