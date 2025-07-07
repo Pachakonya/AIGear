@@ -30,6 +30,9 @@ class EmailService:
             else:
                 raise EmailSendError(f"SendGrid error: {response.status_code} {response.body}")
         except Exception as e:
+            # For 403 errors, SendGrid usually provides details in the response body
+            if hasattr(e, 'body'):
+                print("SENDGRID ERROR BODY:", e.body)
             print("EMAIL ERROR:", e)
             raise EmailSendError(f"Failed to send verification email: {str(e)}")
     
