@@ -24,44 +24,14 @@ struct GearAndHikeResponse: Codable {
 
 class NetworkService {
     static let shared = NetworkService()
-    private let baseURL = "https://api.aigear.tech" // ← REPLACE with your IP
+    private let baseURL = "https://api.aigear.tech"
+    // private let baseURL = "http://10.68.96.28:8000" // Local Docker
 
     private func addAuthHeader(to request: inout URLRequest) {
         if let token = AuthService.shared.getAuthToken() {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
     }
-
-    // func getGearRecommendation(weather: String, trailCondition: String, completion: @escaping (Result<GearResponse, Error>) -> Void) {
-    //     guard let url = URL(string: "\(baseURL)/gear/recommend") else {
-    //         return completion(.failure(NSError(domain: "Invalid URL", code: 400)))
-    //     }
-
-    //     var request = URLRequest(url: url)
-    //     request.httpMethod = "POST"
-    //     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-    //     addAuthHeader(to: &request)
-
-    //     let body = GearRequest(weather: weather, trail_condition: trailCondition)
-    //     request.httpBody = try? JSONEncoder().encode(body)
-
-    //     URLSession.shared.dataTask(with: request) { data, response, error in
-    //         if let error = error {
-    //             return completion(.failure(error))
-    //         }
-
-    //         guard let data = data else {
-    //             return completion(.failure(NSError(domain: "No Data", code: 404)))
-    //         }
-
-    //         do {
-    //             let decoded = try JSONDecoder().decode(GearResponse.self, from: data)
-    //             completion(.success(decoded))
-    //         } catch {
-    //             completion(.failure(error))
-    //         }
-    //     }.resume()
-    // }
     
     func uploadTrailData(
         coordinates: [CLLocationCoordinate2D],
@@ -137,7 +107,7 @@ class NetworkService {
             }
         }.resume()
     }
-
+    
     func getGearAndHikeSuggestions(completion: @escaping (Result<GearAndHikeResponse, Error>) -> Void) {
         guard let url = URL(string: "\(baseURL)/aiengine/gear-and-hike-suggest") else {
             return completion(Result.failure(NSError(domain: "Invalid URL", code: 400)))

@@ -14,92 +14,85 @@ struct ChatbotView: View {
     @State private var isLoading: Bool = false
     @FocusState private var isInputFocused: Bool
     
-    // WebSocket implementation (commented out for now)
     // @StateObject private var webSocketService = WebSocketService.shared
 
     var body: some View {
-        VStack {
-            // WebSocket connection status indicator (commented out for now)
-            /*
-            HStack {
-                Circle()
-                    .fill(webSocketService.isConnected ? Color.green : Color.red)
-                    .frame(width: 8, height: 8)
-                Text(webSocketService.isConnected ? "Connected" : "Disconnected")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                Spacer()
-            }
-            .padding(.horizontal)
-            */
-            
-            ScrollViewReader { scrollProxy in
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 12) {
-                        ForEach(chatHistory) { message in
-                            HStack {
-                                if message.isUser { Spacer() }
-                                Text(message.text)
-                                    .padding(12)
-                                    .background(message.isUser ? Color.blue.opacity(0.15) : Color.gray.opacity(0.12))
-                                    .foregroundColor(.primary)
-                                    .cornerRadius(16)
-                                if !message.isUser { Spacer() }
+        ZStack {
+            AuthBackgroundView(imageName: "launch_hiker")
+                .ignoresSafeArea()
+            // Full-screen blur overlay
+            Color.clear
+                .background(.ultraThinMaterial)
+                .ignoresSafeArea()
+            VStack(spacing: 0) {
+                // Chat messages
+                ScrollViewReader { scrollProxy in
+                    ScrollView {
+                        VStack(spacing: 12) {
+                            ForEach(chatHistory) { message in
+                                HStack {
+                                    if message.isUser { Spacer() }
+                                    Text(message.text)
+                                        .padding(.vertical, 10)
+                                        .padding(.horizontal, 16)
+                                        .background(
+                                            message.isUser
+                                            ? Color.accentColor
+                                            : Color.white.opacity(0.85)
+                                        )
+                                        .foregroundColor(message.isUser ? .white : .black)
+                                        .font(.system(size: 16, weight: .regular, design: .rounded))
+                                        .cornerRadius(18)
+                                        .shadow(color: .black.opacity(0.07), radius: 2, x: 0, y: 2)
+                                    if !message.isUser { Spacer() }
+                                }
+                                .padding(.horizontal, 6)
+                            }
+                            if isLoading {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .accentColor))
+                                    .frame(maxWidth: .infinity, alignment: .center)
                             }
                         }
-                        if isLoading {
-                            HStack {
-                                ProgressView().progressViewStyle(CircularProgressViewStyle())
-                                Text("Thinking...")
-                                    .foregroundColor(.gray)
-                                Spacer()
-                            }
-                        }
+                        .padding(.vertical, 12)
                     }
-                    .padding(.vertical)
+                    .background(Color.clear)
                 }
-                .onChange(of: chatHistory.count, initial: false) { _, _ in
-                    withAnimation { scrollProxy.scrollTo(chatHistory.last?.id, anchor: .bottom) }
+                // Input bar
+                HStack(spacing: 8) {
+                    TextField("Type your message...", text: $userInput)
+                        .font(.system(size: 16, weight: .regular, design: .rounded))
+                        .padding(.vertical, 12)
+                        .padding(.horizontal, 16)
+                        .background(Color.white.opacity(0.9))
+                        .cornerRadius(20)
+                        .focused($isInputFocused)
+                        .submitLabel(.send)
+                        .onSubmit { sendMessage() }
+                    Button(action: sendMessage) {
+                        Image(systemName: "paperplane.fill")
+                            .foregroundColor(.white)
+                            .padding(12)
+                            .background(Color.accentColor)
+                            .clipShape(Circle())
+                    }
+                    .disabled(userInput.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
+                .padding(.horizontal)
+                .padding(.vertical, 10)
+                .background(.ultraThinMaterial)
+                .cornerRadius(24)
+                .padding(.bottom, 32) // <-- Extra space for TabBar
             }
-            Divider()
-            HStack {
-                TextField("Type your message...", text: $userInput)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .focused($isInputFocused)
-                Button(action: sendMessage) {
-                    Image(systemName: "paperplane.fill")
-                        .foregroundColor(userInput.isEmpty ? .gray : .blue)
-                }
-                .disabled(userInput.isEmpty)
-            }
-            .padding()
+            .padding(.top, 8)
+            .padding(.bottom, 0)
         }
-                .navigationTitle("AI Trail Chatbot")
         .contentShape(Rectangle())
         .onTapGesture {
             UIApplication.shared.endEditing()
         }
-        
-        // WebSocket lifecycle management (commented out for now)
-        /*
-        .onAppear {
-            setupWebSocket()
-        }
-        .onDisappear {
-            webSocketService.disconnect()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .websocketMessageReceived)) { notification in
-            if let message = notification.userInfo?["message"] as? String {
-                handleWebSocketResponse(message)
-            }
-        }
-        .onChange(of: webSocketService.lastError) { _, error in
-            if let error = error {
-                chatHistory.append(ChatMessage(text: "Connection error: \(error)", isUser: false))
-            }
-        }
-        */
+        // Only ignore keyboard for bottom safe area
+        // .ignoresSafeArea(.keyboard, edges: .bottom)
     }
 
     func sendMessage() {
@@ -110,46 +103,29 @@ struct ChatbotView: View {
         let prompt = userInput.lowercased()
         userInput = ""
         isInputFocused = false
-        // Simulate intent: if user asks for gear/hike, fetch from backend
-        if prompt.contains("gear") || prompt.contains("hike") || prompt.contains("suggest") {
-            fetchGearAndHikeSuggestions()
-        } else {
-            // Fallback: echo or simple bot reply
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                chatHistory.append(ChatMessage(text: "Ask me for gear or hike suggestions for your latest route!", isUser: false))
-                isLoading = false
-            }
-        }
+        
+        fetchGearAndHikeSuggestions(for: prompt)
     }
 
-    func fetchGearAndHikeSuggestions() {
-        NetworkService.shared.getGearAndHikeSuggestions { result in
+    func fetchGearAndHikeSuggestions(for prompt: String) {
+        NetworkService.shared.getGearAndHikeSuggestions(prompt: prompt) { result in
             DispatchQueue.main.async {
                 isLoading = false
                 switch result {
                 case .success(let decoded):
                     let gearText = "🧢 Gear Suggestions:\n" + decoded.gear.map { "• \($0)" }.joined(separator: "\n")
                     let hikeText = "🥾 Hike Tips:\n" + decoded.hike.map { "• \($0)" }.joined(separator: "\n")
-                    chatHistory.append(ChatMessage(text: gearText + "\n\n" + hikeText, isUser: false))
+                    let suggestion = "\n\nDo you want me to create a checklist for your hike?"
+                    chatHistory.append(ChatMessage(text: gearText + "\n\n" + hikeText + suggestion, isUser: false))
                 case .failure(let error):
                     chatHistory.append(ChatMessage(text: "Error: \(error.localizedDescription)", isUser: false))
                 }
             }
         }
     }
-    
-    // WebSocket implementation (commented out for now)
-    /*
-    private func setupWebSocket() {
-        webSocketService.connect()
-    }
-    
-    private func handleWebSocketResponse(_ message: String) {
-        DispatchQueue.main.async {
-            self.isLoading = false
-            self.chatHistory.append(ChatMessage(text: message, isUser: false))
-        }
-    }
-    */
+}
+
+#Preview{
+    ChatbotView()
 }
 

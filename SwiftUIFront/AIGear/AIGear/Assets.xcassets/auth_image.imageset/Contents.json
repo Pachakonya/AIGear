@@ -1,11 +1,11 @@
 {
   "images" : [
     {
+      "filename" : "auth_image.jpg",
       "idiom" : "universal",
       "scale" : "1x"
     },
     {
-      "filename" : "auth_image.jpg",
       "idiom" : "universal",
       "scale" : "2x"
     },

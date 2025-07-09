@@ -1,11 +1,11 @@
 {
   "images" : [
     {
+      "filename" : "launch_hiker.jpg",
       "idiom" : "iphone",
       "scale" : "1x"
     },
     {
-      "filename" : "launch_hiker.jpg",
       "idiom" : "iphone",
       "scale" : "2x"
     },
