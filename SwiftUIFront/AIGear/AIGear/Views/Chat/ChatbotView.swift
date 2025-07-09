@@ -13,9 +13,26 @@ struct ChatbotView: View {
     @State private var userInput: String = ""
     @State private var isLoading: Bool = false
     @FocusState private var isInputFocused: Bool
+    
+    // WebSocket implementation (commented out for now)
+    // @StateObject private var webSocketService = WebSocketService.shared
 
     var body: some View {
         VStack {
+            // WebSocket connection status indicator (commented out for now)
+            /*
+            HStack {
+                Circle()
+                    .fill(webSocketService.isConnected ? Color.green : Color.red)
+                    .frame(width: 8, height: 8)
+                Text(webSocketService.isConnected ? "Connected" : "Disconnected")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Spacer()
+            }
+            .padding(.horizontal)
+            */
+            
             ScrollViewReader { scrollProxy in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 12) {
@@ -58,11 +75,31 @@ struct ChatbotView: View {
             }
             .padding()
         }
-        .navigationTitle("AI Trail Chatbot")
+                .navigationTitle("AI Trail Chatbot")
         .contentShape(Rectangle())
         .onTapGesture {
             UIApplication.shared.endEditing()
         }
+        
+        // WebSocket lifecycle management (commented out for now)
+        /*
+        .onAppear {
+            setupWebSocket()
+        }
+        .onDisappear {
+            webSocketService.disconnect()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .websocketMessageReceived)) { notification in
+            if let message = notification.userInfo?["message"] as? String {
+                handleWebSocketResponse(message)
+            }
+        }
+        .onChange(of: webSocketService.lastError) { _, error in
+            if let error = error {
+                chatHistory.append(ChatMessage(text: "Connection error: \(error)", isUser: false))
+            }
+        }
+        */
     }
 
     func sendMessage() {
@@ -100,4 +137,19 @@ struct ChatbotView: View {
             }
         }
     }
+    
+    // WebSocket implementation (commented out for now)
+    /*
+    private func setupWebSocket() {
+        webSocketService.connect()
+    }
+    
+    private func handleWebSocketResponse(_ message: String) {
+        DispatchQueue.main.async {
+            self.isLoading = false
+            self.chatHistory.append(ChatMessage(text: message, isUser: false))
+        }
+    }
+    */
 }
+

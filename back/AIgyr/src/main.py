@@ -8,6 +8,8 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from src.aiengine.router import router as aiengine_router
 from src.auth.router import router as auth_router
+# WebSocket implementation (commented out for now)
+# from src.aiengine.websocket import websocket_endpoint
 
 from celery_app import create_task
 
@@ -48,3 +50,13 @@ async def terms_of_service():
 app.include_router(post_router)
 app.include_router(aiengine_router)
 app.include_router(auth_router)
+
+# Health check endpoint
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy", "websocket_support": False}
+
+# WebSocket implementation (commented out for now)
+# @app.websocket("/ws/chat")
+# async def websocket_chat(websocket):
+#     await websocket_endpoint(websocket)

@@ -1,10 +1,12 @@
 import SwiftUI
 
 struct AuthBackgroundView: View {
+    var imageName: String = "auth_image"
+    
     var body: some View {
         GeometryReader { geo in
             ZStack {
-                Image("auth_image")
+                Image(imageName)
                     .resizable()
                     .scaledToFill()
                     .frame(width: geo.size.width, height: geo.size.height)

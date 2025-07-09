@@ -50,7 +50,7 @@ class AuthOptionsViewModel: ObservableObject {
             case .failure(let error):
                 print("Apple sign in failed: \(error.localizedDescription)")
                 self.errorMessage = error.localizedDescription
-                self.showError = true
+                self.showError = false
                 completion(false)
             }
         }
@@ -63,6 +63,13 @@ class AuthOptionsViewModel: ObservableObject {
         GIDSignIn.sharedInstance.signIn(withPresenting: presentingViewController) { signInResult, error in
             self.isLoading = false
             if let error = error {
+                // Check for user cancellation (GoogleSignIn error code -5 or use NSError)
+                let nsError = error as NSError
+                if nsError.code == -5 { // -5 is user cancellation for GoogleSignIn
+                    // Do nothing, just return
+                    completion(false)
+                    return
+                }
                 self.errorMessage = "Google Sign-In error: \(error.localizedDescription)"
                 self.showError = true
                 completion(false)

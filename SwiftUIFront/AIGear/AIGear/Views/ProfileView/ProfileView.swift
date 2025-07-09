@@ -28,15 +28,17 @@ struct ProfileView: View {
                 }
                 .padding(.top)
                 
-                // Profile Options
-                VStack(spacing: 0) {
-                    ProfileOptionRow(icon: "gear", title: "Settings", action: {})
-                    ProfileOptionRow(icon: "bell", title: "Notifications", action: {})
+                // // Profile Options
+                // VStack(spacing: 0) {
+                //     NavigationLink(destination: SettingsView()) {
+                //         ProfileOptionRow(icon: "gear", title: "Settings", action: {})
+                //     }
+                //     // ProfileOptionRow(icon: "bell", title: "Notifications", action: {})
                    
-                }
-                .background(Color(.systemGray6))
-                .cornerRadius(12)
-                .padding(.horizontal)
+                // }
+                // .background(Color(.systemGray6))
+                // .cornerRadius(12)
+                // .padding(.horizontal)
                 
                 // About Section
                 VStack(alignment: .leading, spacing: 8) {
@@ -46,6 +48,8 @@ struct ProfileView: View {
                     VStack(spacing: 0) {
                         NavigationLink(destination: SupportView()) {
                             ProfileOptionRow(icon: "questionmark.circle", title: "Support", action: {})
+                                .navigationBarBackButtonHidden(true)
+                                .navigationBarTitleDisplayMode(.inline)
                         }
                         NavigationLink(destination: PrivacyPolicyView()) {
                             ProfileOptionRow(icon: "doc.text", title: "Privacy Policy", action: {})
@@ -123,6 +127,7 @@ struct ProfileView: View {
             .navigationTitle("Profile")
             .navigationBarTitleDisplayMode(.large)
         }
+         .tint(.black)
     }
 }
 
