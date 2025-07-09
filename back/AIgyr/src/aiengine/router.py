@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
 from .schemas import TrailDataInput, GearRecommendation, GearAndHikeResponse
 from .knowledge_base import retrieve_gear
@@ -12,8 +12,11 @@ router = APIRouter(prefix="/aiengine", tags=["AIEngine"])
 # Create OpenAI client instance
 openai_client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-@router.get("/gear-and-hike-suggest", response_model=GearAndHikeResponse)
-def gear_and_hike_suggest(db: Session = Depends(get_db)):
+@router.post("/gear-and-hike-suggest", response_model=GearAndHikeResponse)
+def gear_and_hike_suggest(
+    prompt: str = Body(...),  # Accept prompt from frontend
+    db: Session = Depends(get_db)
+):
     # Fetch latest trail data
     trail = db.query(TrailData).order_by(TrailData.id.desc()).first()
     if not trail:

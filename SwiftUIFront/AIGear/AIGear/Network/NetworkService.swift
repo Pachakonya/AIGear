@@ -108,25 +108,28 @@ class NetworkService {
         }.resume()
     }
     
-    func getGearAndHikeSuggestions(completion: @escaping (Result<GearAndHikeResponse, Error>) -> Void) {
+    func getGearAndHikeSuggestions(prompt: String, completion: @escaping (Result<GearAndHikeResponse, Error>) -> Void) {
         guard let url = URL(string: "\(baseURL)/aiengine/gear-and-hike-suggest") else {
-            return completion(Result.failure(NSError(domain: "Invalid URL", code: 400)))
+            return completion(.failure(NSError(domain: "Invalid URL", code: 400)))
         }
         var request = URLRequest(url: url)
-        request.httpMethod = "GET"
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         addAuthHeader(to: &request)
+        let body = ["prompt": prompt]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         URLSession.shared.dataTask(with: request) { data, response, error in
             if let error = error {
-                return completion(Result.failure(error))
+                return completion(.failure(error))
             }
             guard let data = data else {
-                return completion(Result.failure(NSError(domain: "No Data", code: 404)))
+                return completion(.failure(NSError(domain: "No Data", code: 404)))
             }
             do {
                 let decoded = try JSONDecoder().decode(GearAndHikeResponse.self, from: data)
-                completion(Result.success(decoded))
+                completion(.success(decoded))
             } catch {
-                completion(Result.failure(error))
+                completion(.failure(error))
             }
         }.resume()
     }
