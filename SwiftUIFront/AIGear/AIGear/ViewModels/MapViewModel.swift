@@ -11,6 +11,9 @@ final class MapViewModel: ObservableObject {
     private let locationService = LocationService()
     private var cancellables = Set<AnyCancellable>()
     private let geocoder = CLGeocoder()
+    private var geocodingTimer: Timer?
+    private var lastGeocodedLocation: CLLocation?
+    private let minimumDistanceForNewGeocoding: CLLocationDistance = 100 // meters
 
     init() {
         bindLocationService()
@@ -29,24 +32,59 @@ final class MapViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
-        // Observe location changes
+        // Observe location changes with debouncing
         locationService.$currentLocation
             .sink { [weak self] location in
                 self?.userLocation = location
-                self?.reverseGeocode(location)
+                self?.scheduleReverseGeocode(location)
             }
             .store(in: &cancellables)
     }
-
-    private func reverseGeocode(_ location: CLLocation?) {
+    
+    private func scheduleReverseGeocode(_ location: CLLocation?) {
+        // Cancel any pending geocoding
+        geocodingTimer?.invalidate()
+        
         guard let location = location else {
             DispatchQueue.main.async {
                 self.userAddress = ""
             }
             return
         }
+        
+        // Check if we've moved significantly from last geocoded location
+        if let lastLocation = lastGeocodedLocation,
+           location.distance(from: lastLocation) < minimumDistanceForNewGeocoding {
+            // Location hasn't changed significantly, skip geocoding
+            return
+        }
+        
+        // Schedule geocoding after a delay to debounce rapid updates
+        geocodingTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: false) { [weak self] _ in
+            self?.performReverseGeocode(location)
+        }
+    }
+
+    private func performReverseGeocode(_ location: CLLocation) {
+        // Cancel any pending geocoding requests
+        geocoder.cancelGeocode()
+        
+        lastGeocodedLocation = location
+        
         geocoder.reverseGeocodeLocation(location) { [weak self] placemarks, error in
             guard let self = self else { return }
+            
+            if let error = error as NSError? {
+                // Check for rate limit error
+                if error.domain == kCLErrorDomain && error.code == CLError.Code.geocodeFoundNoResult.rawValue {
+                    print("Geocoding rate limited or no result found")
+                }
+                DispatchQueue.main.async {
+                    self.userAddress = "Current Location"
+                }
+                return
+            }
+            
             if let placemark = placemarks?.first {
                 let street = placemark.thoroughfare ?? ""
                 let number = placemark.subThoroughfare ?? ""

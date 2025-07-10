@@ -45,8 +45,8 @@ class AuthService: ObservableObject {
     @Published var currentUser: UserData?
     @Published var isLoading = false
     
-    private let baseURL = "https://api.aigear.tech"
-    // private let baseURL = "http://10.68.96.28:8000" // Local Docker
+    // private let baseURL = "https://api.aigear.tech"
+    private let baseURL = "http://172.20.10.8:8000" // Local Docker
     private let tokenKey = "auth_token"
     private let userKey = "user_data"
     

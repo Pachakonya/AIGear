@@ -4,11 +4,18 @@ struct ChatMessage: Identifiable {
     let id = UUID()
     let text: String
     let isUser: Bool
+    let toolUsed: String?
+    
+    init(text: String, isUser: Bool, toolUsed: String? = nil) {
+        self.text = text
+        self.isUser = isUser
+        self.toolUsed = toolUsed
+    }
 }
 
 struct ChatbotView: View {
     @State private var chatHistory: [ChatMessage] = [
-        ChatMessage(text: "Hi! Ask me for gear or hike suggestions for your latest route.", isUser: false)
+        ChatMessage(text: "Hi! I'm AI Gear Assistant. Ask me for gear suggestions, check your wardrobe, or just chat about hiking.", isUser: false)
     ]
     @State private var userInput: String = ""
     @State private var isLoading: Bool = false
@@ -24,108 +31,242 @@ struct ChatbotView: View {
             Color.clear
                 .background(.ultraThinMaterial)
                 .ignoresSafeArea()
+            
             VStack(spacing: 0) {
-                // Chat messages
-                ScrollViewReader { scrollProxy in
+                // Chat history
+                ScrollViewReader { proxy in
                     ScrollView {
                         VStack(spacing: 12) {
                             ForEach(chatHistory) { message in
-                                HStack {
-                                    if message.isUser { Spacer() }
-                                    Text(message.text)
-                                        .padding(.vertical, 10)
-                                        .padding(.horizontal, 16)
-                                        .background(
-                                            message.isUser
-                                            ? Color.accentColor
-                                            : Color.white.opacity(0.85)
-                                        )
-                                        .foregroundColor(message.isUser ? .white : .black)
-                                        .font(.system(size: 16, weight: .regular, design: .rounded))
-                                        .cornerRadius(18)
-                                        .shadow(color: .black.opacity(0.07), radius: 2, x: 0, y: 2)
-                                    if !message.isUser { Spacer() }
-                                }
-                                .padding(.horizontal, 6)
-                            }
-                            if isLoading {
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .accentColor))
-                                    .frame(maxWidth: .infinity, alignment: .center)
+                                ChatBubble(
+                                    text: message.text,
+                                    isUser: message.isUser,
+                                    toolUsed: message.toolUsed
+                                )
+                                .id(message.id)
                             }
                         }
-                        .padding(.vertical, 12)
+                        .padding()
                     }
-                    .background(Color.clear)
+                    .onChange(of: chatHistory.count) { _ in
+                        withAnimation {
+                            proxy.scrollTo(chatHistory.last?.id, anchor: .bottom)
+                        }
+                    }
                 }
+                
                 // Input bar
-                HStack(spacing: 8) {
+                HStack(spacing: 12) {
                     TextField("Type your message...", text: $userInput)
-                        .font(.system(size: 16, weight: .regular, design: .rounded))
-                        .padding(.vertical, 12)
+                        .textFieldStyle(PlainTextFieldStyle())
                         .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
                         .background(Color.white.opacity(0.9))
                         .cornerRadius(20)
                         .focused($isInputFocused)
-                        .submitLabel(.send)
-                        .onSubmit { sendMessage() }
+                        .disabled(isLoading)
+                        .onSubmit {
+                            sendMessage()
+                        }
+                    
                     Button(action: sendMessage) {
                         Image(systemName: "paperplane.fill")
                             .foregroundColor(.white)
-                            .padding(12)
-                            .background(Color.accentColor)
+                            .frame(width: 40, height: 40)
+                            .background(Color.black)
                             .clipShape(Circle())
                     }
-                    .disabled(userInput.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .disabled(userInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isLoading)
+                    .opacity(userInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.5 : 1.0)
                 }
                 .padding(.horizontal)
-                .padding(.vertical, 10)
-                .background(.ultraThinMaterial)
-                .cornerRadius(24)
-                .padding(.bottom, 32) // <-- Extra space for TabBar
+                .padding(.vertical, 26)
+                .background(Color.white.opacity(0.95))
             }
-            .padding(.top, 8)
-            .padding(.bottom, 0)
         }
-        .contentShape(Rectangle())
         .onTapGesture {
-            UIApplication.shared.endEditing()
+            isInputFocused = false
         }
-        // Only ignore keyboard for bottom safe area
-        // .ignoresSafeArea(.keyboard, edges: .bottom)
     }
-
+    
     func sendMessage() {
-        guard !userInput.trimmingCharacters(in: .whitespaces).isEmpty else { return }
-        let userMsg = ChatMessage(text: userInput, isUser: true)
-        chatHistory.append(userMsg)
-        isLoading = true
-        let prompt = userInput.lowercased()
+        let trimmedInput = userInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedInput.isEmpty else { return }
+        
+        // Prevent sending if already loading
+        guard !isLoading else { return }
+        
+        // Add user message
+        chatHistory.append(ChatMessage(text: trimmedInput, isUser: true))
+        
+        // Clear input and show loading
         userInput = ""
+        isLoading = true
         isInputFocused = false
         
-        fetchGearAndHikeSuggestions(for: prompt)
+        // Call orchestrator
+        callOrchestrator(for: trimmedInput)
     }
-
-    func fetchGearAndHikeSuggestions(for prompt: String) {
-        NetworkService.shared.getGearAndHikeSuggestions(prompt: prompt) { result in
+    
+    func callOrchestrator(for prompt: String) {
+        NetworkService.shared.callOrchestrator(prompt: prompt) { result in
             DispatchQueue.main.async {
                 isLoading = false
                 switch result {
-                case .success(let decoded):
-                    let gearText = "🧢 Gear Suggestions:\n" + decoded.gear.map { "• \($0)" }.joined(separator: "\n")
-                    let hikeText = "🥾 Hike Tips:\n" + decoded.hike.map { "• \($0)" }.joined(separator: "\n")
-                    let suggestion = "\n\nDo you want me to create a checklist for your hike?"
-                    chatHistory.append(ChatMessage(text: gearText + "\n\n" + hikeText + suggestion, isUser: false))
+                case .success(let response):
+                    // Parse and structure the response
+                    structureOrchestratorResponse(response)
                 case .failure(let error):
-                    chatHistory.append(ChatMessage(text: "Error: \(error.localizedDescription)", isUser: false))
+                    // Check if it's a rate limit error
+                    if let nsError = error as NSError?, 
+                       nsError.domain == "GEOErrorDomain" && nsError.code == 3 {
+                        chatHistory.append(ChatMessage(
+                            text: "⚠️ Too many requests. Please wait a moment before trying again.", 
+                            isUser: false,
+                            toolUsed: "error"
+                        ))
+                    } else {
+                        chatHistory.append(ChatMessage(
+                            text: "Error: \(error.localizedDescription)", 
+                            isUser: false,
+                            toolUsed: "error"
+                        ))
+                    }
                 }
             }
         }
     }
+    
+    func structureOrchestratorResponse(_ response: OrchestratorResponse) {
+        // Split the response into logical sections
+        let responseText = response.response
+        
+        if response.tool_used == "gear_recommendation_tool" {
+            // Parse gear recommendations by category
+            let sections = responseText.components(separatedBy: "\n\n")
+            for section in sections where !section.isEmpty {
+                // Skip the header and context lines
+                if section.starts(with: "Based on") || section.starts(with: "_These recommendations") {
+                    continue
+                }
+                chatHistory.append(ChatMessage(
+                    text: section,
+                    isUser: false,
+                    toolUsed: response.tool_used
+                ))
+            }
+            
+            // Add context as a separate message
+            if let contextLine = sections.first(where: { $0.starts(with: "_These recommendations") }) {
+                chatHistory.append(ChatMessage(
+                    text: contextLine.trimmingCharacters(in: CharacterSet(charactersIn: "_")),
+                    isUser: false,
+                    toolUsed: "context"
+                ))
+            }
+        } else if response.tool_used == "trail_analysis_tool" {
+            // Split trail analysis into sections
+            let sections = responseText.components(separatedBy: "\n\n")
+            for section in sections where !section.isEmpty {
+                chatHistory.append(ChatMessage(
+                    text: section,
+                    isUser: false,
+                    toolUsed: response.tool_used
+                ))
+            }
+        } else {
+            // For other tools, add as single message
+            chatHistory.append(ChatMessage(
+                text: responseText,
+                isUser: false,
+                toolUsed: response.tool_used
+            ))
+        }
+        
+        // Add follow-up suggestion
+        if response.tool_used == "gear_recommendation_tool" {
+            chatHistory.append(ChatMessage(
+                text: "Would you like me to create a checklist for your hike? Or check if you have any of these items?",
+                isUser: false,
+                toolUsed: "suggestion"
+            ))
+        }
+    }
 }
 
-#Preview{
-    ChatbotView()
+struct ChatBubble: View {
+    let text: String
+    let isUser: Bool
+    let toolUsed: String?
+    
+    var body: some View {
+        HStack {
+            if isUser { Spacer(minLength: 60) }
+            
+            VStack(alignment: isUser ? .trailing : .leading, spacing: 4) {
+                if !isUser && toolUsed != nil && toolUsed != "context" && toolUsed != "suggestion" {
+                    Text(toolLabel)
+                        .font(.custom("DMSans-Regular", size: 11))
+                        .foregroundColor(.gray)
+                        .padding(.horizontal, 8)
+                }
+                
+                Text(text)
+                    .font(.custom("DMSans-Regular", size: 16))
+                    .foregroundColor(isUser ? .white : .black)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 18)
+                            .fill(backgroundColor)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 18)
+                            .stroke(borderColor, lineWidth: isUser ? 0 : 1)
+                    )
+            }
+            
+            if !isUser { Spacer(minLength: 60) }
+        }
+    }
+    
+    var backgroundColor: Color {
+        if isUser {
+            return Color.black
+        } else if toolUsed == "context" {
+            return Color.gray.opacity(0.1)
+        } else if toolUsed == "suggestion" {
+            return Color.blue.opacity(0.1)
+        } else {
+            return Color.white
+        }
+    }
+    
+    var borderColor: Color {
+        if toolUsed == "suggestion" {
+            return Color.blue.opacity(0.3)
+        } else {
+            return Color.gray.opacity(0.2)
+        }
+    }
+    
+    var toolLabel: String {
+        switch toolUsed {
+        case "gear_recommendation_tool":
+            return "🎒 Gear Recommendation"
+        case "wardrobe_inventory_tool":
+            return "👕 Wardrobe Check"
+        case "trail_analysis_tool":
+            return "📊 Trail Analysis"
+        case "chat_tool":
+            return "💬 General Info"
+        default:
+            return ""
+        }
+    }
 }
+
+//#Preview{
+//    MainTabView()
+//}
 

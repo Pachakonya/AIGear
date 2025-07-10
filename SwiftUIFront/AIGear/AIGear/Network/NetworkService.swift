@@ -22,10 +22,60 @@ struct GearAndHikeResponse: Codable {
     let hike: [String]
 }
 
+struct OrchestratorResponse: Codable {
+    let tool_used: String
+    let parameters: [String: AnyCodable]
+    let response: String
+    let raw_response: String?
+}
+
+struct AnyCodable: Codable {
+    let value: Any
+    
+    init(_ value: Any) {
+        self.value = value
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let bool = try? container.decode(Bool.self) {
+            value = bool
+        } else if let int = try? container.decode(Int.self) {
+            value = int
+        } else if let double = try? container.decode(Double.self) {
+            value = double
+        } else if let string = try? container.decode(String.self) {
+            value = string
+        } else if let array = try? container.decode([AnyCodable].self) {
+            value = array.map { $0.value }
+        } else if let dict = try? container.decode([String: AnyCodable].self) {
+            value = dict.mapValues { $0.value }
+        } else {
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Cannot decode value")
+        }
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch value {
+        case let bool as Bool:
+            try container.encode(bool)
+        case let int as Int:
+            try container.encode(int)
+        case let double as Double:
+            try container.encode(double)
+        case let string as String:
+            try container.encode(string)
+        default:
+            throw EncodingError.invalidValue(value, EncodingError.Context(codingPath: [], debugDescription: "Cannot encode value"))
+        }
+    }
+}
+
 class NetworkService {
     static let shared = NetworkService()
-    private let baseURL = "https://api.aigear.tech"
-    // private let baseURL = "http://10.68.96.28:8000" // Local Docker
+    // private let baseURL = "https://api.aigear.tech"
+    private let baseURL = "http://172.20.10.8:8000" // Local Docker
 
     private func addAuthHeader(to request: inout URLRequest) {
         if let token = AuthService.shared.getAuthToken() {
@@ -152,6 +202,33 @@ class NetworkService {
                 return
             }
             completion(.success(()))
+        }.resume()
+    }
+
+    func callOrchestrator(prompt: String, completion: @escaping (Result<OrchestratorResponse, Error>) -> Void) {
+        guard let url = URL(string: "\(baseURL)/aiengine/orchestrate") else {
+            return completion(.failure(NSError(domain: "Invalid URL", code: 400)))
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 30.0 // Add 30 second timeout
+        addAuthHeader(to: &request)
+        let body = ["prompt": prompt]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            if let error = error {
+                return completion(.failure(error))
+            }
+            guard let data = data else {
+                return completion(.failure(NSError(domain: "No Data", code: 404)))
+            }
+            do {
+                let decoded = try JSONDecoder().decode(OrchestratorResponse.self, from: data)
+                completion(.success(decoded))
+            } catch {
+                completion(.failure(error))
+            }
         }.resume()
     }
 }
