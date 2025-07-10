@@ -5,11 +5,13 @@ struct ChatMessage: Identifiable {
     let text: String
     let isUser: Bool
     let toolUsed: String?
+    let payload: String?
     
-    init(text: String, isUser: Bool, toolUsed: String? = nil) {
+    init(text: String, isUser: Bool, toolUsed: String? = nil, payload: String? = nil) {
         self.text = text
         self.isUser = isUser
         self.toolUsed = toolUsed
+        self.payload = payload
     }
 }
 
@@ -41,14 +43,15 @@ struct ChatbotView: View {
                                 ChatBubble(
                                     text: message.text,
                                     isUser: message.isUser,
-                                    toolUsed: message.toolUsed
+                                    toolUsed: message.toolUsed,
+                                    payload: message.payload
                                 )
                                 .id(message.id)
                             }
                         }
                         .padding()
                     }
-                    .onChange(of: chatHistory.count) { _ in
+                    .onChange(of: chatHistory.count) {
                         withAnimation {
                             proxy.scrollTo(chatHistory.last?.id, anchor: .bottom)
                         }
@@ -138,57 +141,45 @@ struct ChatbotView: View {
     }
     
     func structureOrchestratorResponse(_ response: OrchestratorResponse) {
-        // Split the response into logical sections
+        // Create a single, well-formatted message instead of multiple bubbles
         let responseText = response.response
         
         if response.tool_used == "gear_recommendation_tool" {
-            // Parse gear recommendations by category
-            let sections = responseText.components(separatedBy: "\n\n")
-            for section in sections where !section.isEmpty {
-                // Skip the header and context lines
-                if section.starts(with: "Based on") || section.starts(with: "_These recommendations") {
-                    continue
-                }
-                chatHistory.append(ChatMessage(
-                    text: section,
-                    isUser: false,
-                    toolUsed: response.tool_used
-                ))
-            }
+            // Add the entire gear recommendation as one message
+            chatHistory.append(ChatMessage(
+                text: responseText,
+                isUser: false,
+                toolUsed: response.tool_used,
+                payload: responseText
+            ))
             
-            // Add context as a separate message
-            if let contextLine = sections.first(where: { $0.starts(with: "_These recommendations") }) {
-                chatHistory.append(ChatMessage(
-                    text: contextLine.trimmingCharacters(in: CharacterSet(charactersIn: "_")),
-                    isUser: false,
-                    toolUsed: "context"
-                ))
-            }
+            // Add follow-up suggestion
+            chatHistory.append(ChatMessage(
+                text: "Would you like me to create a checklist for your hike? Or check if you have any of these items?",
+                isUser: false,
+                toolUsed: "suggestion"
+            ))
+            
+            // After adding follow-up suggestion also add checklist action message
+            chatHistory.append(ChatMessage(
+                text: "Create Checklist",
+                isUser: false,
+                toolUsed: "checklist_action",
+                payload: responseText
+            ))
         } else if response.tool_used == "trail_analysis_tool" {
-            // Split trail analysis into sections
-            let sections = responseText.components(separatedBy: "\n\n")
-            for section in sections where !section.isEmpty {
-                chatHistory.append(ChatMessage(
-                    text: section,
-                    isUser: false,
-                    toolUsed: response.tool_used
-                ))
-            }
+            // Add trail analysis as one message
+            chatHistory.append(ChatMessage(
+                text: responseText,
+                isUser: false,
+                toolUsed: response.tool_used
+            ))
         } else {
             // For other tools, add as single message
             chatHistory.append(ChatMessage(
                 text: responseText,
                 isUser: false,
                 toolUsed: response.tool_used
-            ))
-        }
-        
-        // Add follow-up suggestion
-        if response.tool_used == "gear_recommendation_tool" {
-            chatHistory.append(ChatMessage(
-                text: "Would you like me to create a checklist for your hike? Or check if you have any of these items?",
-                isUser: false,
-                toolUsed: "suggestion"
             ))
         }
     }
@@ -198,34 +189,90 @@ struct ChatBubble: View {
     let text: String
     let isUser: Bool
     let toolUsed: String?
+    let payload: String?
+    
+    @ObservedObject private var gearVM = GearViewModel.shared
     
     var body: some View {
-        HStack {
-            if isUser { Spacer(minLength: 60) }
-            
+        // Special rendering for checklist action
+        if toolUsed == "checklist_action" {
+            HStack {
+                Spacer(minLength: 60)
+                Button(action: {
+                    if let rec = payload {
+                        gearVM.createChecklistFromRecommendations(rec)
+                        gearVM.shouldNavigateToGear = true
+                    }
+                }) {
+                    Text(text)
+                        .font(.custom("DMSans-SemiBold", size: 16))
+                        .foregroundColor(.black)
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 12)
+                        .background(Color.white)
+                        .cornerRadius(24)
+                        .shadow(color: .black.opacity(0.12), radius: 4, x: 0, y: 2)
+                }
+                Spacer(minLength: 60)
+            }
+        } else {
+            standardBubble
+        }
+    }
+    
+    @ViewBuilder
+    var standardBubble: some View {
+        HStack(alignment: .top, spacing: 8) {
+            if isUser {
+                Spacer(minLength: 60)
+            }
+
             VStack(alignment: isUser ? .trailing : .leading, spacing: 4) {
-                if !isUser && toolUsed != nil && toolUsed != "context" && toolUsed != "suggestion" {
+                if !isUser && toolUsed != nil && toolUsed != "context" && toolUsed != "suggestion" && toolUsed != "checklist_action" {
                     Text(toolLabel)
-                        .font(.custom("DMSans-Regular", size: 11))
-                        .foregroundColor(.gray)
-                        .padding(.horizontal, 8)
+                        .font(.custom("DMSans-Medium", size: 12))
+                        .foregroundColor(labelColor)
                 }
                 
-                Text(text)
-                    .font(.custom("DMSans-Regular", size: 16))
-                    .foregroundColor(isUser ? .white : .black)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(
-                        RoundedRectangle(cornerRadius: 18)
-                            .fill(backgroundColor)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 18)
-                            .stroke(borderColor, lineWidth: isUser ? 0 : 1)
-                    )
+                // Format text with markdown support
+                if text.contains("**") || text.contains("•") {
+                    FormattedTextView(text: text, isUser: isUser)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 20)
+                                .fill(backgroundColor)
+                                .shadow(color: .black.opacity(0.05), radius: 5, x: 0, y: 2)
+                        )
+                } else {
+                    Text(text)
+                        .font(.custom("DMSans-Regular", size: 16))
+                        .foregroundColor(isUser ? .white : .black)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 20)
+                                .fill(backgroundColor)
+                                .shadow(color: .black.opacity(0.05), radius: 5, x: 0, y: 2)
+                        )
+                }
             }
-            
+            .frame(maxWidth: 300, alignment: isUser ? .trailing : .leading)
+            /* Icon overlay disabled for now for cleaner alignment
+            .overlay(
+                Group {
+                    if !isUser && toolUsed != nil && toolUsed != "context" && toolUsed != "suggestion" && toolUsed != "checklist_action" {
+                        Image(systemName: iconName)
+                            .font(.system(size: 18))
+                            .foregroundColor(iconColor)
+                            .background(Circle().fill(iconColor.opacity(0.1)).frame(width: 28, height: 28))
+                            .offset(x: -10, y: -10)
+                    }
+                }, alignment: .topLeading
+            )
+            .padding(.leading, (!isUser && toolUsed != nil && toolUsed != "context" && toolUsed != "suggestion" && toolUsed != "checklist_action") ? 24 : 0)
+            */
+
             if !isUser { Spacer(minLength: 60) }
         }
     }
@@ -233,36 +280,114 @@ struct ChatBubble: View {
     var backgroundColor: Color {
         if isUser {
             return Color.black
-        } else if toolUsed == "context" {
-            return Color.gray.opacity(0.1)
         } else if toolUsed == "suggestion" {
-            return Color.blue.opacity(0.1)
+            return Color.blue.opacity(0.08)
+        } else if toolUsed == "error" {
+            return Color.red.opacity(0.08)
         } else {
             return Color.white
         }
     }
     
-    var borderColor: Color {
-        if toolUsed == "suggestion" {
-            return Color.blue.opacity(0.3)
-        } else {
-            return Color.gray.opacity(0.2)
+    var iconName: String {
+        switch toolUsed {
+        case "gear_recommendation_tool":
+            return "backpack"
+        case "wardrobe_inventory_tool":
+            return "tshirt"
+        case "trail_analysis_tool":
+            return "chart.line.uptrend.xyaxis"
+        case "chat_tool":
+            return "bubble.left.and.bubble.right"
+        case "error":
+            return "exclamationmark.triangle"
+        default:
+            return "sparkles"
         }
+    }
+    
+    var iconColor: Color {
+        switch toolUsed {
+        case "gear_recommendation_tool":
+            return .green
+        case "wardrobe_inventory_tool":
+            return .purple
+        case "trail_analysis_tool":
+            return .orange
+        case "chat_tool":
+            return .blue
+        case "error":
+            return .red
+        default:
+            return .blue
+        }
+    }
+    
+    var labelColor: Color {
+        return iconColor
     }
     
     var toolLabel: String {
         switch toolUsed {
         case "gear_recommendation_tool":
-            return "🎒 Gear Recommendation"
+            return "Gear Recommendations"
         case "wardrobe_inventory_tool":
-            return "👕 Wardrobe Check"
+            return "Wardrobe Check"
         case "trail_analysis_tool":
-            return "📊 Trail Analysis"
+            return "Trail Analysis"
         case "chat_tool":
-            return "💬 General Info"
+            return "General Info"
+        case "error":
+            return "Error"
         default:
             return ""
         }
+    }
+}
+
+// Helper view to format text with markdown-like styling
+struct FormattedTextView: View {
+    let text: String
+    let isUser: Bool
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(parseText(), id: \.self) { section in
+                if section.hasPrefix("**") && section.hasSuffix("**") {
+                    // Bold headers
+                    Text(section.replacingOccurrences(of: "**", with: ""))
+                        .font(.custom("DMSans-SemiBold", size: 16))
+                        .foregroundColor(isUser ? .white : .black)
+                } else if section.hasPrefix("•") {
+                    // Bullet points
+                    HStack(alignment: .top, spacing: 8) {
+                        Text("•")
+                            .font(.custom("DMSans-Regular", size: 16))
+                            .foregroundColor(isUser ? .white.opacity(0.7) : .black.opacity(0.7))
+                        Text(section.dropFirst(1).trimmingCharacters(in: .whitespaces))
+                            .font(.custom("DMSans-Regular", size: 16))
+                            .foregroundColor(isUser ? .white : .black)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                } else if section.hasPrefix("_") && section.hasSuffix("_") {
+                    // Italic context
+                    Text(section.replacingOccurrences(of: "_", with: ""))
+                        .font(.custom("DMSans-Regular", size: 14))
+                        .italic()
+                        .foregroundColor(isUser ? .white.opacity(0.8) : .black.opacity(0.6))
+                } else if !section.isEmpty {
+                    // Regular text
+                    Text(section)
+                        .font(.custom("DMSans-Regular", size: 16))
+                        .foregroundColor(isUser ? .white : .black)
+                }
+            }
+        }
+    }
+    
+    func parseText() -> [String] {
+        // Split by newlines but keep the structure
+        return text.components(separatedBy: "\n").filter { !$0.isEmpty }
     }
 }
 

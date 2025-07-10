@@ -2,6 +2,7 @@ import SwiftUI
 
 struct MainTabView: View {
     @State private var selectedTab = 0 // Center tab (ChatBot) is default
+    @StateObject private var gearVM = GearViewModel.shared
 
     var body: some View {
         ZStack {
@@ -26,6 +27,12 @@ struct MainTabView: View {
                     .tag(2)
             }
             .accentColor(.black)
+            .onReceive(gearVM.$shouldNavigateToGear) { value in
+                if value {
+                    selectedTab = 2
+                    gearVM.shouldNavigateToGear = false
+                }
+            }
 
             // Overlay the horse icon, ignoring safe area
             VStack {

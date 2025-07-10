@@ -40,7 +40,7 @@ final class MapViewModel: ObservableObject {
             }
             .store(in: &cancellables)
     }
-    
+
     private func scheduleReverseGeocode(_ location: CLLocation?) {
         // Cancel any pending geocoding
         geocodingTimer?.invalidate()

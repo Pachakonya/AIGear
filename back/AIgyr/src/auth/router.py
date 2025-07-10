@@ -18,6 +18,7 @@ from src.database import get_db
 from src.auth.models import User
 from google.oauth2 import id_token
 from google.auth.transport import requests
+import jwt
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -71,6 +72,68 @@ def google_auth(data: dict = Body(...), db: Session = Depends(get_db)):
         )
     except Exception as e:
         raise HTTPException(status_code=400, detail="Invalid Google token")
+
+@router.post("/apple", response_model=TokenResponse)
+def apple_auth(data: dict = Body(...), db: Session = Depends(get_db)):
+    """
+    Handle Apple Sign-In authentication
+    Expected data: {
+        "identityToken": "...",  # JWT from Apple
+        "user": {                # Only provided on first sign-in
+            "email": "...",      # May be a proxy email
+            "name": {...}        # Optional name components
+        }
+    }
+    """
+    identity_token = data.get("identityToken")
+    user_info = data.get("user", {})
+    
+    if not identity_token:
+        raise HTTPException(status_code=400, detail="Apple identity token required")
+    
+    try:
+        # In production, you should verify the Apple JWT token
+        # For now, we'll decode it without verification (NOT SECURE)
+        # TODO: Implement proper Apple token verification
+        decoded_token = jwt.decode(identity_token, options={"verify_signature": False})
+        
+        # Get the Apple user ID (sub) and email
+        apple_user_id = decoded_token.get("sub")
+        email = decoded_token.get("email") or user_info.get("email")
+        
+        if not apple_user_id:
+            raise HTTPException(status_code=400, detail="Invalid Apple token")
+        
+        # Check if user exists by Apple ID or email
+        user = db.query(User).filter(
+            (User.email == email) if email else (User.id == apple_user_id)
+        ).first()
+        
+        if not user:
+            # Create new user
+            # Use Apple ID as user ID if no email provided
+            user = User(
+                id=apple_user_id,  # Use Apple's sub as the user ID
+                email=email or f"{apple_user_id}@privaterelay.appleid.com",  # Fallback email
+                username=user_info.get("name", {}).get("firstName"),
+                is_verified=True,  # Apple emails are pre-verified
+                hashed_password=""  # No password for OAuth users
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+        
+        # Generate JWT token
+        jwt_token = create_access_token({"sub": user.id})
+        return TokenResponse(
+            access_token=jwt_token,
+            token_type="bearer",
+            user=UserResponse(id=user.id, email=user.email, username=user.username)
+        )
+        
+    except Exception as e:
+        print(f"Apple auth error: {e}")
+        raise HTTPException(status_code=400, detail="Invalid Apple token")
 
 # Email verification endpoints
 @router.post("/send-code", response_model=SendCodeResponse, status_code=200)

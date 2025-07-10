@@ -20,3 +20,4 @@ aiosmtplib
 pydantic_settings>=2.0
 sendgrid
 uvicorn[standard]
+PyJWT

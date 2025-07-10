@@ -121,7 +121,7 @@ async def websocket_endpoint(websocket: WebSocket):
     print(f"WebSocket connection attempt from {websocket.client.host}:{websocket.client.port}")
     print(f"Headers: {websocket.headers}")
     print(f"Query params: {websocket.query_params}")
-
+    
     db = SessionLocal()  # <-- Open a new DB session
     try:
         await manager.connect(websocket)
@@ -134,23 +134,23 @@ async def websocket_endpoint(websocket: WebSocket):
                 data = await websocket.receive_text()
                 message_data = json.loads(data)
                 print(f"Received WebSocket message: {message_data}")
-                
+            
                 # Handle different message types
                 if message_data.get("type") == "chat":
                     user_message = message_data.get("message", "").lower()
                     print(f"Processing chat message: {user_message}")
-                    
+                
                     # Check if user is asking for gear/hike suggestions
                     if any(keyword in user_message for keyword in ["gear", "hike", "suggest", "recommend", "what should i bring"]):
                         print("Generating gear and hike suggestions...")
                         # Get suggestions
                         suggestions = await get_gear_and_hike_suggestions(db)
-                        
+                    
                         # Format response
                         gear_text = "🧢 Gear Suggestions:\n" + "\n".join([f"• {item}" for item in suggestions.gear])
                         hike_text = "🥾 Hike Tips:\n" + "\n".join([f"• {item}" for item in suggestions.hike])
                         response_text = f"{gear_text}\n\n{hike_text}"
-                        
+                    
                         print(f"Sending response: {response_text}")
                         # Send response
                         await manager.send_personal_message(

@@ -172,8 +172,12 @@ struct SignUpView: View {
         do {
             let success = try await authService.verifyCode(email: email, code: code)
             if success {
-                authService.isAuthenticated = true
-                // Optionally, you can update UI or navigate to the next screen here
+                // ✅ After verification, log in and store token
+                let loginSuccess = try await authService.signIn(email: email, password: password)
+                if loginSuccess {
+                    authService.isAuthenticated = true
+                    // Optionally, navigate to the main app screen
+                }
             } else {
                 errorMessage = "Invalid or expired verification code."
                 showError = true

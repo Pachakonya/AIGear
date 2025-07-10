@@ -74,8 +74,8 @@ struct AnyCodable: Codable {
 
 class NetworkService {
     static let shared = NetworkService()
-    // private let baseURL = "https://api.aigear.tech"
-    private let baseURL = "http://172.20.10.8:8000" // Local Docker
+    private let baseURL = "https://api.aigear.tech"
+//    private let baseURL = "http://192.168.100.68:8000" // Local Docker
 
     private func addAuthHeader(to request: inout URLRequest) {
         if let token = AuthService.shared.getAuthToken() {
@@ -157,7 +157,7 @@ class NetworkService {
             }
         }.resume()
     }
-    
+
     func getGearAndHikeSuggestions(prompt: String, completion: @escaping (Result<GearAndHikeResponse, Error>) -> Void) {
         guard let url = URL(string: "\(baseURL)/aiengine/gear-and-hike-suggest") else {
             return completion(.failure(NSError(domain: "Invalid URL", code: 400)))

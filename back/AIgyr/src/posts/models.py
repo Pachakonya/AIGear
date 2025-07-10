@@ -15,7 +15,9 @@ class TrailData(Base):
     __tablename__ = "trail_data"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, nullable=False, index=True)  # Foreign key to User.id
     coordinates = Column(ARRAY(Float))  # Or JSON if preferred
     distance_meters = Column(Float)
     elevation_gain_meters = Column(Float)
     trail_conditions = Column(ARRAY(String))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

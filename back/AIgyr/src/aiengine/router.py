@@ -9,6 +9,8 @@ from src.database import get_db
 from src.posts.models import TrailData
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
+from src.auth.dependencies import get_current_user
+from src.auth.models import User
 
 router = APIRouter(prefix="/aiengine", tags=["AIEngine"])
 
@@ -25,10 +27,16 @@ class OrchestratorResponse(BaseModel):
     raw_response: Optional[str] = None
 
 # Tool implementations
-def gear_recommendation_tool(terrain: List[str] = None, weather: str = None, distance: float = None, elevation: float = None) -> str:
+def gear_recommendation_tool(terrain: List[str] = None, weather: str = None, distance: float = None, elevation: float = None, user_id: str = None) -> str:
     """Recommend hiking gear based on conditions"""
     db = next(get_db())
-    trail = db.query(TrailData).order_by(TrailData.id.desc()).first()
+    
+    # Get user-specific trail data if user_id provided
+    trail = None
+    if user_id:
+        trail = db.query(TrailData).filter(
+            TrailData.user_id == user_id
+        ).order_by(TrailData.id.desc()).first()
     
     recommendations = []
     
@@ -147,10 +155,15 @@ def wardrobe_inventory_tool(item: str, action: str = "check") -> str:
     
     return f"I can help you {action} '{item}' in your wardrobe."
 
-def trail_analysis_tool(analyze_elevation: bool = False, analyze_difficulty: bool = False) -> str:
+def trail_analysis_tool(analyze_elevation: bool = False, analyze_difficulty: bool = False, user_id: str = None) -> str:
     """Analyze the latest trail data"""
     db = next(get_db())
-    trail = db.query(TrailData).order_by(TrailData.id.desc()).first()
+    
+    # Get user-specific trail data
+    query = db.query(TrailData)
+    if user_id:
+        query = query.filter(TrailData.user_id == user_id)
+    trail = query.order_by(TrailData.id.desc()).first()
     
     if not trail:
         return "No trail data available. Please upload a trail first."
@@ -306,14 +319,17 @@ TOOL_FUNCTIONS = {
 }
 
 @router.post("/orchestrate", response_model=OrchestratorResponse)
-async def orchestrate(request: PromptRequest):
+async def orchestrate(
+    request: PromptRequest,
+    current_user: User = Depends(get_current_user)
+):
     """AI Agent Orchestrator that selects and executes appropriate tools based on user input"""
-    
-    # Get latest trail data to provide context
     db = next(get_db())
-    trail = db.query(TrailData).order_by(TrailData.id.desc()).first()
+    # Get user-specific trail data
+    trail = db.query(TrailData).filter(
+        TrailData.user_id == current_user.id
+    ).order_by(TrailData.id.desc()).first()
     
-    # Build trail context if available
     trail_context = ""
     if trail:
         trail_context = f"\n\nLatest Trail Data Available:\n"
@@ -356,6 +372,10 @@ When the user asks for gear recommendations without specifying conditions, use t
         tool_call = message.tool_calls[0]
         tool_name = tool_call.function.name
         tool_args = json.loads(tool_call.function.arguments)
+        
+        # Add user_id to args for tools that need it
+        if tool_name in ["gear_recommendation_tool", "trail_analysis_tool"]:
+            tool_args["user_id"] = current_user.id
         
         # Execute the selected tool
         tool_function = TOOL_FUNCTIONS.get(tool_name)
