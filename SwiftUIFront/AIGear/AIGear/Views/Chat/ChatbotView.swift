@@ -109,7 +109,7 @@ struct ChatbotView: View {
             ) {
                 // On Save – add a context bubble summarizing trip specs
                 let overnightText = tripOvernight ? "overnight" : "day hike"
-                let summary = "_Trip details: \(tripDays) day(s), \(overnightText), season: \(tripSeason.capitalized), companions: \(tripCompanions)_"
+                let summary = "Trip details: \(tripDays) day(s), \(overnightText), season: \(tripSeason.capitalized), companions: \(tripCompanions)_"
                 chatHistory.append(ChatMessage(text: summary, isUser: false, toolUsed: "context"))
                 
                 tripCustomized = true // mark as customized
