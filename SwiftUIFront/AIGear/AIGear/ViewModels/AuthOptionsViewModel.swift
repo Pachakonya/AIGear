@@ -44,9 +44,27 @@ class AuthOptionsViewModel: ObservableObject {
             switch result {
             case .success(let credential):
                 // Here you would send credential.identityToken to your backend for verification
-                AuthService.shared.isAuthenticated = true
-                print("Apple sign in success: \(credential)")
-                completion(true)
+                if let tokenData = credential.identityToken,
+                   let tokenString = String(data: tokenData, encoding: .utf8) {
+                    // Build user dictionary with email / name if available (only on first sign-in)
+                    var userDict: [String: Any] = [:]
+                    if let email = credential.email {
+                        userDict["email"] = email
+                    }
+                    if let fullName = credential.fullName {
+                        userDict["name"] = [
+                            "firstName": fullName.givenName ?? "",
+                            "lastName": fullName.familyName ?? ""
+                        ]
+                    }
+                    Task {
+                        await AuthService.shared.signInWithApple(identityToken: tokenString, user: userDict.isEmpty ? nil : userDict)
+                        completion(true)
+                    }
+                } else {
+                    print("Unable to retrieve Apple identity token")
+                    completion(false)
+                }
             case .failure(let error):
                 print("Apple sign in failed: \(error.localizedDescription)")
                 self.errorMessage = error.localizedDescription

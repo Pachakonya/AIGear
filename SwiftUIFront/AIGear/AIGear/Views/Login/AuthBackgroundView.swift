@@ -10,7 +10,7 @@ struct AuthBackgroundView: View {
                     .resizable()
                     .scaledToFill()
                     .frame(width: geo.size.width, height: geo.size.height)
-                    .scaleEffect(1.2)
+                    .scaleEffect(1.5)
                     .offset(y: 20)
                     .offset(x: 100)
                     .ignoresSafeArea()

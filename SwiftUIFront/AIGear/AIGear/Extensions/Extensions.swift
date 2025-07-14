@@ -14,11 +14,11 @@ extension UIApplication {
     }
 }
 
-struct WebLink: Identifiable {
-    let id = UUID()
-    let url: URL
-    let title: String
-}
+// struct WebLink: Identifiable {
+//     let id = UUID()
+//     let url: URL
+//     let title: String
+// }
 
 class KeyboardObserver: ObservableObject {
     static let shared = KeyboardObserver() // Singleton instance

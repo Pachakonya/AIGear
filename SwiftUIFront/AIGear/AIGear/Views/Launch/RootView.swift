@@ -15,9 +15,9 @@ struct RootView: View {
             }
         }
         
-//        The launch Screen Would pop up now
-        .onAppear {
-            hasSeenLaunchScreen = false // Always show launch screen on app start
-        }
+////        The launch Screen Would pop up now
+//        .onAppear {
+//            hasSeenLaunchScreen = false // Always show launch screen on app start
+//        }
     }
 }

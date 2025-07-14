@@ -51,7 +51,7 @@ struct ChatbotView: View {
                         }
                         .padding()
                     }
-                    .onChange(of: chatHistory.count) {
+                    .onChange(of: chatHistory.count) { _ in   
                         withAnimation {
                             proxy.scrollTo(chatHistory.last?.id, anchor: .bottom)
                         }

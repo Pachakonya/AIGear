@@ -210,6 +210,31 @@ class AuthService: ObservableObject {
         }
     }
     
+    func signInWithApple(identityToken: String, user: [String: Any]? = nil) async {
+        guard let url = URL(string: "\(baseURL)/auth/apple") else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        var body: [String: Any] = ["identityToken": identityToken]
+        if let user = user {
+            body["user"] = user
+        }
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+                print("Apple sign-in failed")
+                return
+            }
+            let authResponse = try JSONDecoder().decode(AuthResponse.self, from: data)
+            await MainActor.run {
+                self.storeAuth(token: authResponse.access_token, user: authResponse.user)
+            }
+        } catch {
+            print("Apple sign-in error: \(error)")
+        }
+    }
+    
     @MainActor
     private func setLoading(_ value: Bool) {
         self.isLoading = value
