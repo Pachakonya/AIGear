@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 from src.auth.dependencies import get_current_user
 from src.auth.models import User
+from .weather_service import fetch_current_weather, sample_coordinates
 
 router = APIRouter(prefix="/aiengine", tags=["AIEngine"])
 
@@ -27,7 +28,17 @@ class OrchestratorResponse(BaseModel):
     raw_response: Optional[str] = None
 
 # Tool implementations
-def gear_recommendation_tool(terrain: List[str] = None, weather: str = None, distance: float = None, elevation: float = None, user_id: str = None) -> str:
+def gear_recommendation_tool(
+    terrain: List[str] = None,
+    weather: str = None,
+    distance: float = None,
+    elevation: float = None,
+    days: int = None,
+    overnight: bool = False,
+    season: str = None,
+    companions: int = None,
+    user_id: str = None
+) -> str:
     """Recommend hiking gear based on conditions"""
     db = next(get_db())
     
@@ -50,6 +61,31 @@ def gear_recommendation_tool(terrain: List[str] = None, weather: str = None, dis
         if elevation is None and trail.elevation_gain_meters:
             elevation = trail.elevation_gain_meters
     
+    # ⛅️ Auto-fetch current weather if not supplied
+    temp_c: Optional[float] = None  # Track temperature for advice later
+    if weather is None and trail and trail.coordinates:
+        from .weather_service import sample_coordinates  # local import to avoid circular
+        coords = trail.coordinates
+        try:
+            samples = sample_coordinates(coords, km_between=7.0)
+            if samples:
+                descriptions = []
+                temps = []
+                for lat, lon in samples:
+                    data = fetch_current_weather(lat, lon)
+                    if data:
+                        descriptions.append(data["description"])
+                        temps.append(data["temp"])
+
+                if descriptions:
+                    # Choose the most frequent description
+                    weather = max(set(descriptions), key=descriptions.count)
+                if temps:
+                    temp_c = sum(temps) / len(temps)
+        except Exception:
+            # Fallback: leave weather as None if any issue occurs
+            pass
+    
     # Generate recommendations based on conditions
     if terrain:
         for t in terrain:
@@ -71,7 +107,7 @@ def gear_recommendation_tool(terrain: List[str] = None, weather: str = None, dis
             recommendations.extend(["Rain jacket", "Pack cover", "Waterproof pants"])
         elif "hot" in weather_lower or "sunny" in weather_lower:
             recommendations.extend(["Sun hat", "Lightweight clothing", "Extra water", "Sunscreen"])
-        elif "cold" in weather_lower:
+        elif "cold" in weather_lower or (temp_c is not None and temp_c < 5):
             recommendations.extend(["Insulated jacket", "Gloves", "Warm hat", "Thermal layers"])
         elif "wind" in weather_lower:
             recommendations.extend(["Windbreaker", "Buff or neck gaiter"])
@@ -89,6 +125,55 @@ def gear_recommendation_tool(terrain: List[str] = None, weather: str = None, dis
             recommendations.extend(["Layers for temperature changes", "Extra water", "High-energy snacks", "Altitude sickness medication"])
         elif elevation > 500:
             recommendations.extend(["Extra layer", "Additional water", "Energy bars"])
+    
+    # ✅ NEW LOGIC – trip-specific parameters ---------------------------
+
+    # Overnight trips => shelter & camp systems
+    if overnight:
+        recommendations.extend([
+            "Tent or Tarp (suitable for conditions)",
+            "Sleeping bag rated for expected lows",
+            "Sleeping pad",
+            "Backpacking stove & fuel",
+            "Cookware & utensils",
+            "Food storage / Bear canister if required"
+        ])
+
+    # Multi-day factor – food, clothing redundancy, water treatment
+    if days and days > 1:
+        recommendations.extend([
+            f"Meals & snacks for {days} days",
+            "Spare socks (≥2 pairs)",
+            "Water treatment / filtration system",
+            "Extra fuel (if using stove)"
+        ])
+
+    # Seasonal adjustments
+    if season:
+        season_lower = season.lower()
+        if season_lower == "winter":
+            recommendations.extend([
+                "Insulating mid-layer (fleece or puffy)",
+                "Down or synthetic parka",
+                "Snow shovel",
+                "Four-season (winter-rated) tent",
+                "Crampons / snow spikes"
+            ])
+        elif season_lower == "shoulder":
+            recommendations.extend([
+                "Light insulation layer",
+                "Pack rain cover or dry bags"
+            ])
+        # Summer – usually covered by hot/sunny weather logic, but add bugs
+        elif season_lower == "summer":
+            recommendations.extend([
+                "Insect repellent",
+                "Lightweight sleeping bag or liner"
+            ])
+
+    # Group size could influence first-aid or shelter; simple example
+    if companions and companions > 4:
+        recommendations.append("Group-sized first-aid kit")
     
     # Add essentials that are always recommended
     essentials = ["First aid kit", "Navigation (map/GPS)", "Emergency whistle", "Headlamp"]
@@ -125,6 +210,29 @@ def gear_recommendation_tool(terrain: List[str] = None, weather: str = None, dis
         response += "🚨 **Safety Essentials:**\n" + "\n".join([f"• {item}" for item in safety]) + "\n\n"
     if other:
         response += "📦 **Other Items:**\n" + "\n".join([f"• {item}" for item in other]) + "\n\n"
+    
+    # 🌤 Weather & timing information
+    if weather:
+        response += f"🌤 **Current Weather:** {weather.capitalize()}"
+        if temp_c is not None:
+            response += f", {temp_c:.1f}°C"
+        response += "\n"
+
+        # Basic timing advice based on weather / temperature
+        advice_parts = []
+        harsh_conditions = any(w in weather.lower() for w in ["storm", "thunder", "heavy rain", "snow"])
+        if harsh_conditions:
+            advice_parts.append("⚠️ Forecast looks harsh – consider rescheduling or selecting an alternative day with better weather.")
+        else:
+            if "rain" in weather.lower():
+                advice_parts.append("☔ Expect rainfall – start early and pack waterproof gear.")
+            if temp_c is not None:
+                if temp_c > 30:
+                    advice_parts.append("🥵 High temperatures – start at sunrise to avoid midday heat and carry extra water.")
+                elif temp_c < 0:
+                    advice_parts.append("❄️ Sub-zero temperatures – begin later in the morning when it's a bit warmer and dress in insulated layers.")
+        if advice_parts:
+            response += "\n".join(advice_parts) + "\n\n"
     
     # Add context about the recommendations
     if trail:
@@ -216,6 +324,48 @@ def chat_tool(question: str) -> str:
     )
     return response.choices[0].message.content
 
+def weather_conditions_tool(detail: bool = False, user_id: str = None) -> str:
+    """Return aggregated current weather along the latest trail for the user."""
+    db = next(get_db())
+    # Fetch latest trail
+    query = db.query(TrailData)
+    if user_id:
+        query = query.filter(TrailData.user_id == user_id)
+    trail = query.order_by(TrailData.id.desc()).first()
+
+    if not trail or not trail.coordinates:
+        return "No trail data available. Please upload a trail first."
+
+    # Sample coordinates (reuse helper)
+    samples = sample_coordinates(trail.coordinates, km_between=5.0)
+    if not samples:
+        return "Coordinates could not be parsed for weather lookup."
+
+    descriptions = []
+    temps = []
+    for lat, lon in samples:
+        data = fetch_current_weather(lat, lon)
+        if data:
+            descriptions.append(data["description"])
+            temps.append(data["temp"])
+
+    if not descriptions:
+        return "Weather service unavailable or API limit reached. Try again later."
+
+    # Aggregate
+    common_desc = max(set(descriptions), key=descriptions.count)
+    avg_temp = sum(temps) / len(temps) if temps else None
+
+    if detail:
+        breakdown = "\n".join([f"• {d.capitalize()}, {t:.1f}°C" for d, t in zip(descriptions, temps)])
+        return (
+            f"Current weather along your trail (sampled every 5 km):\n"
+            f"Overall: {common_desc.capitalize()}, {avg_temp:.1f}°C on average\n\n"
+            f"Breakdown:\n{breakdown}"
+        )
+    else:
+        return f"Current weather: {common_desc.capitalize()}, {avg_temp:.1f}°C (averaged along the trail)."
+
 # Tool definitions for OpenAI function calling
 TOOLS = [
     {
@@ -242,6 +392,23 @@ TOOLS = [
                     "elevation": {
                         "type": "number",
                         "description": "Elevation gain in meters"
+                    },
+                    "days": {
+                        "type": "integer",
+                        "description": "Total number of days for the trip"
+                    },
+                    "overnight": {
+                        "type": "boolean",
+                        "description": "Whether the trip includes overnight camping"
+                    },
+                    "season": {
+                        "type": "string",
+                        "enum": ["summer", "winter", "shoulder"],
+                        "description": "Season of the trip which can influence gear choices"
+                    },
+                    "companions": {
+                        "type": "integer",
+                        "description": "Number of people in the party"
                     }
                 },
                 "required": []
@@ -294,6 +461,23 @@ TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "weather_conditions_tool",
+            "description": "Get current weather information along the latest uploaded trail (aggregated)",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "detail": {
+                        "type": "boolean",
+                        "description": "If true, include per-sample breakdown instead of only aggregate"
+                    }
+                },
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "chat_tool",
             "description": "General hiking and travel Q&A for questions not covered by other tools",
             "parameters": {
@@ -315,6 +499,7 @@ TOOL_FUNCTIONS = {
     "gear_recommendation_tool": gear_recommendation_tool,
     "wardrobe_inventory_tool": wardrobe_inventory_tool,
     "trail_analysis_tool": trail_analysis_tool,
+    "weather_conditions_tool": weather_conditions_tool,
     "chat_tool": chat_tool
 }
 
@@ -348,6 +533,7 @@ Available tools:
 - gear_recommendation_tool: For gear/equipment suggestions based on conditions
 - wardrobe_inventory_tool: To check/manage items the user owns
 - trail_analysis_tool: To analyze trail difficulty and elevation
+- weather_conditions_tool: To fetch aggregated real-time weather along the trail
 - chat_tool: For general hiking/travel questions
 
 Always choose the most specific tool for the task. Only use chat_tool if no other tool fits.
@@ -374,7 +560,7 @@ When the user asks for gear recommendations without specifying conditions, use t
         tool_args = json.loads(tool_call.function.arguments)
         
         # Add user_id to args for tools that need it
-        if tool_name in ["gear_recommendation_tool", "trail_analysis_tool"]:
+        if tool_name in ["gear_recommendation_tool", "trail_analysis_tool", "weather_conditions_tool"]:
             tool_args["user_id"] = current_user.id
         
         # Execute the selected tool

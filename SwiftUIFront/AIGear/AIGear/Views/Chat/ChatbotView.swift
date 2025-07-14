@@ -23,6 +23,17 @@ struct ChatbotView: View {
     @State private var isLoading: Bool = false
     @FocusState private var isInputFocused: Bool
     
+    // Trip-spec states
+    @State private var showTripSpecSheet: Bool = false
+    @State private var tripDays: Int = 1
+    @State private var tripOvernight: Bool = false
+    @State private var tripSeason: String = "summer"
+    @State private var tripCompanions: Int = 1
+    
+    // Track if user customized trip specs & if reminder already shown
+    @State private var tripCustomized: Bool = false
+    @State private var tripReminderShown: Bool = false
+    
     // @StateObject private var webSocketService = WebSocketService.shared
 
     var body: some View {
@@ -72,19 +83,36 @@ struct ChatbotView: View {
                             sendMessage()
                         }
                     
-                    Button(action: sendMessage) {
-                        Image(systemName: "paperplane.fill")
+                    // Trip-spec settings button (replaces send icon)
+                    Button(action: {
+                        showTripSpecSheet = true
+                    }) {
+                        Image(systemName: "slider.horizontal.3")
                             .foregroundColor(.white)
                             .frame(width: 40, height: 40)
                             .background(Color.black)
                             .clipShape(Circle())
                     }
-                    .disabled(userInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isLoading)
-                    .opacity(userInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.5 : 1.0)
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 26)
                 .background(Color.white.opacity(0.95))
+            }
+        }
+        // Sheet for collecting trip parameters
+        .sheet(isPresented: $showTripSpecSheet) {
+            TripSpecView(
+                days: $tripDays,
+                overnight: $tripOvernight,
+                season: $tripSeason,
+                companions: $tripCompanions
+            ) {
+                // On Save – add a context bubble summarizing trip specs
+                let overnightText = tripOvernight ? "overnight" : "day hike"
+                let summary = "_Trip details: \(tripDays) day(s), \(overnightText), season: \(tripSeason.capitalized), companions: \(tripCompanions)_"
+                chatHistory.append(ChatMessage(text: summary, isUser: false, toolUsed: "context"))
+                
+                tripCustomized = true // mark as customized
             }
         }
         .onTapGesture {
@@ -106,6 +134,16 @@ struct ChatbotView: View {
         userInput = ""
         isLoading = true
         isInputFocused = false
+        
+        // If user hasn't customized trip specs yet, show one-time reminder
+        if !tripCustomized && !tripReminderShown {
+            chatHistory.append(ChatMessage(
+                text: "ℹ️ Tip: For more tailored gear suggestions, tap the slider icon (top-right) to fill in trip details like days, season, and if you'll be overnighting.",
+                isUser: false,
+                toolUsed: "suggestion"
+            ))
+            tripReminderShown = true
+        }
         
         // Call orchestrator
         callOrchestrator(for: trimmedInput)
