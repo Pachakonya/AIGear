@@ -54,8 +54,19 @@ struct MapboxOutdoorMapView: UIViewRepresentable {
                 return
             }
 
+            // Set loading state
+            DispatchQueue.main.async {
+                self.viewModel.isLoadingTrail = true
+            }
+
             RouteService().fetchRoute(from: origin, to: destination) { route, conditions in
-                guard let route = route else { return }
+                guard let route = route else { 
+                    // Reset loading state if route fetch fails
+                    DispatchQueue.main.async {
+                        self.viewModel.isLoadingTrail = false
+                    }
+                    return 
+                }
                 
                 // if !conditions.isEmpty {
                 //     for (i, c) in conditions.enumerated() {
@@ -79,6 +90,11 @@ struct MapboxOutdoorMapView: UIViewRepresentable {
                     guard let self = self else { return }
                     self.viewModel.updateDifficulty(from: conditions)
                     self.drawRoute(route: route, on: mapView)
+                    
+                    // Reset loading state after route is drawn
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                        self.viewModel.isLoadingTrail = false
+                    }
                 }
             }
         }

@@ -11,6 +11,7 @@ struct MapContainerView: View {
         ZStack(alignment: .top) {
             MapboxOutdoorMapView(viewModel: viewModel, is3D: $is3D)
                 .edgesIgnoringSafeArea(.top)
+                .allowsHitTesting(!viewModel.isLoadingTrail)
             
             LinearGradient(
                 gradient: Gradient(colors: [Color.white.opacity(0.75), Color.clear]),
@@ -75,6 +76,8 @@ struct MapContainerView: View {
                     }
                     .padding(.trailing, 16)
                     .padding(.bottom, 4)
+                    .disabled(viewModel.isLoadingTrail)
+                    .opacity(viewModel.isLoadingTrail ? 0.5 : 1.0)
                 }
                 
                 // 📍 Location Button
@@ -96,6 +99,8 @@ struct MapContainerView: View {
                     }
                     .padding(.trailing, 16)
                     .padding(.bottom, 4)
+                    .disabled(viewModel.isLoadingTrail)
+                    .opacity(viewModel.isLoadingTrail ? 0.5 : 1.0)
                 }
 
                 // Bottom Card (Greeting + Search Bar)
@@ -116,12 +121,14 @@ struct MapContainerView: View {
                         })
                         .foregroundColor(.primary)
                         .autocapitalization(.none)
+                        .disabled(viewModel.isLoadingTrail)
                     }
                     .padding()
                     .background(Color.white)
                     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                     .shadow(radius: 2)
                     .padding(.horizontal)
+                    .opacity(viewModel.isLoadingTrail ? 0.5 : 1.0)
 
                 }
                 .padding(.bottom, 24)
@@ -130,11 +137,36 @@ struct MapContainerView: View {
                         .fill(Color(.systemGray6).opacity(0.95))
                 )
             }
+            
+            // Loading overlay
+            if viewModel.isLoadingTrail {
+                VStack {
+                    Spacer()
+                    HStack {
+                        Spacer()
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 20)
+                                .fill(Color.black.opacity(0.5))
+                                .frame(width: 60, height: 60)
+                            ProgressView()
+                                .scaleEffect(2.0)
+                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        }
+                        Spacer()
+                    }
+                    Spacer()
+                }
+                .ignoresSafeArea()
+                .allowsHitTesting(true)
+            }
         }
     }
 
     private func performSearch(query: String) {
         guard let userCoordinate = viewModel.userLocation?.coordinate else { return }
+
+        // Set loading state
+        viewModel.isLoadingTrail = true
 
         let request = MKLocalSearch.Request()
         request.naturalLanguageQuery = query
@@ -143,13 +175,31 @@ struct MapContainerView: View {
                                             longitudinalMeters: 100_000)
 
         MKLocalSearch(request: request).start { response, error in
-            guard let destination = response?.mapItems.first?.placemark.coordinate else { return }
+            guard let destination = response?.mapItems.first?.placemark.coordinate else { 
+                // Reset loading state if search fails
+                DispatchQueue.main.async {
+                    self.viewModel.isLoadingTrail = false
+                }
+                return 
+            }
 
             RouteService().fetchRoute(from: userCoordinate, to: destination) { route, conditions in
-                guard let route = route else { return }
+                guard let route = route else { 
+                    // Reset loading state if route fetch fails
+                    DispatchQueue.main.async {
+                        self.viewModel.isLoadingTrail = false
+                    }
+                    return 
+                }
+                
                 DispatchQueue.main.async {
-                    viewModel.updateDifficulty(from: conditions)
+                    self.viewModel.updateDifficulty(from: conditions)
                     NotificationCenter.default.post(name: .drawRouteExternally, object: route)
+                    
+                    // Reset loading state after route is drawn
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                        self.viewModel.isLoadingTrail = false
+                    }
                 }
             }
         }

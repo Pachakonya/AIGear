@@ -7,6 +7,7 @@ final class MapViewModel: ObservableObject {
     @Published var isAuthorized: Bool = false
     @Published var userAddress: String = ""
     @Published var trailDifficulty: Int? = nil
+    @Published var isLoadingTrail: Bool = false
 
     private let locationService = LocationService()
     private var cancellables = Set<AnyCancellable>()
