@@ -7,6 +7,8 @@ import CoreLocation
 extension Notification.Name {
     static let centerMapExternally = Notification.Name("centerMapExternally")
     static let drawRouteExternally = Notification.Name("drawRouteExternally")
+    static let confirmRouteBuilding = Notification.Name("confirmRouteBuilding")
+    static let cancelRouteSelection = Notification.Name("cancelRouteSelection")
 }
 
 struct MapboxOutdoorMapView: UIViewRepresentable {
@@ -16,14 +18,19 @@ struct MapboxOutdoorMapView: UIViewRepresentable {
     class Coordinator: NSObject {
         var mapView: MapView?
         var polylineManager: PolylineAnnotationManager?
+        var circleManager: CircleAnnotationManager?
+
         let viewModel: MapViewModel
         var hasCenteredOnUser = false
+
 
         init(viewModel: MapViewModel) {
             self.viewModel = viewModel
             super.init()
             NotificationCenter.default.addObserver(self, selector: #selector(centerMapNotification(_:)), name: .centerMapExternally, object: nil)
             NotificationCenter.default.addObserver(self, selector: #selector(drawRouteNotification(_:)), name: .drawRouteExternally, object: nil)
+            NotificationCenter.default.addObserver(self, selector: #selector(confirmRouteBuilding(_:)), name: .confirmRouteBuilding, object: nil)
+            NotificationCenter.default.addObserver(self, selector: #selector(cancelRouteSelection(_:)), name: .cancelRouteSelection, object: nil)
         }
 
         @objc private func centerMapNotification(_ notification: Notification) {
@@ -37,18 +44,57 @@ struct MapboxOutdoorMapView: UIViewRepresentable {
             drawRoute(route: route, on: mapView)
         }
 
+        @objc private func confirmRouteBuilding(_ notification: Notification) {
+            guard let coordinate = viewModel.selectedLocation,
+                  let mapView = mapView else { return }
+            
+            buildRoute(to: coordinate, on: mapView)
+        }
+        
+        @objc private func cancelRouteSelection(_ notification: Notification) {
+            // Clear the pin annotation
+            circleManager?.annotations.removeAll()
+        }
+
         @objc func mapTapped(_ sender: UITapGestureRecognizer) {
             // Check if keyboard is open
             if KeyboardObserver.shared.isKeyboardVisible {
                 UIApplication.shared.endEditing()
-                return // Do not build route on this tap
+                return // Do not show confirmation on this tap
             }
 
             guard let mapView = mapView else { return }
 
             let tapPoint = sender.location(in: mapView)
-            let destination = mapView.mapboxMap.coordinate(for: tapPoint)
+            let tappedCoordinate = mapView.mapboxMap.coordinate(for: tapPoint)
 
+            // Show pin at tapped location
+            showPinAtLocation(tappedCoordinate)
+            
+            // Show route confirmation dialog
+            DispatchQueue.main.async {
+                self.viewModel.showRouteConfirmationDialog(for: tappedCoordinate)
+            }
+        }
+        
+        private func showPinAtLocation(_ coordinate: CLLocationCoordinate2D) {
+            // Clear existing pins
+            circleManager?.annotations.removeAll()
+            
+            // Create a new pin using a circle annotation
+            var circleAnnotation = CircleAnnotation(centerCoordinate: coordinate)
+            circleAnnotation.circleRadius = 5
+            circleAnnotation.circleColor = StyleColor(UIColor.systemBlue)
+            circleAnnotation.circleOpacity = 1.0
+            circleAnnotation.circleStrokeColor = StyleColor(UIColor.white)
+            circleAnnotation.circleStrokeWidth = 2
+            circleAnnotation.circleStrokeOpacity = 1.0
+            
+            circleManager?.annotations = [circleAnnotation]
+            
+        }
+        
+        private func buildRoute(to destination: CLLocationCoordinate2D, on mapView: MapView) {
             guard let origin = mapView.location.latestLocation?.coordinate else {
                 print("⚠️ No user location")
                 return
@@ -67,29 +113,14 @@ struct MapboxOutdoorMapView: UIViewRepresentable {
                     }
                     return 
                 }
-                
-                // if !conditions.isEmpty {
-                //     for (i, c) in conditions.enumerated() {
-                //         print("""
-                //         ✅ Condition \(i + 1):
-                //           surface=\(c.surface ?? "nil"),
-                //           sac=\(c.sacScale ?? "nil"),
-                //           visibility=\(c.trailVisibility ?? "nil"),
-                //           incline=\(c.incline ?? "nil"),
-                //           smoothness=\(c.smoothness ?? "nil"),
-                //           bridge=\(c.bridge ?? "nil"),
-                //           tunnel=\(c.tunnel ?? "nil"),
-                //           ford=\(c.ford ?? "nil")
-                //         """)
-                //     }
-                // } else {
-                //     print("❌ No trail conditions found.")
-                // }
 
                 DispatchQueue.main.async { [weak self] in
                     guard let self = self else { return }
                     self.viewModel.updateDifficulty(from: conditions)
                     self.drawRoute(route: route, on: mapView)
+                    
+                    // Clear the pin after route is drawn
+                    self.circleManager?.annotations.removeAll()
                     
                     // Reset loading state after route is drawn
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
@@ -145,6 +176,7 @@ struct MapboxOutdoorMapView: UIViewRepresentable {
         let mapView = MapView(frame: .zero, mapInitOptions: mapInitOptions)
         context.coordinator.mapView = mapView
         context.coordinator.polylineManager = mapView.annotations.makePolylineAnnotationManager()
+        context.coordinator.circleManager = mapView.annotations.makeCircleAnnotationManager()
 
         let tapGesture = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.mapTapped(_:)))
         mapView.addGestureRecognizer(tapGesture)

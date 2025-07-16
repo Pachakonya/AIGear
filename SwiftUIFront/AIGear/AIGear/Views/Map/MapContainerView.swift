@@ -12,6 +12,13 @@ struct MapContainerView: View {
             MapboxOutdoorMapView(viewModel: viewModel, is3D: $is3D)
                 .edgesIgnoringSafeArea(.top)
                 .allowsHitTesting(!viewModel.isLoadingTrail)
+                .onTapGesture {
+                    // Dismiss route confirmation when tapping on map
+                    if viewModel.showRouteConfirmation {
+                        viewModel.cancelRouteSelection()
+                        NotificationCenter.default.post(name: .cancelRouteSelection, object: nil)
+                    }
+                }
             
             LinearGradient(
                 gradient: Gradient(colors: [Color.white.opacity(0.75), Color.clear]),
@@ -115,6 +122,11 @@ struct MapContainerView: View {
                             .foregroundColor(.gray)
                         TextField("Where are you hiking?", text: $searchQuery, onEditingChanged: { editing in
                             showSuggestions = editing
+                            // Dismiss route confirmation when user starts searching
+                            if editing && viewModel.showRouteConfirmation {
+                                viewModel.cancelRouteSelection()
+                                NotificationCenter.default.post(name: .cancelRouteSelection, object: nil)
+                            }
                         }, onCommit: {
                             performSearch(query: searchQuery)
                             showSuggestions = false
@@ -159,11 +171,76 @@ struct MapContainerView: View {
                 .ignoresSafeArea()
                 .allowsHitTesting(true)
             }
+            
+            // Route confirmation overlay
+            if viewModel.showRouteConfirmation {
+                VStack {
+                    Spacer()
+                    
+                    HStack {
+                        Spacer()
+                        
+                        VStack(spacing: 16) {
+                            // Action buttons only
+                            VStack(spacing: 8) {
+                                HStack(spacing: 16) {
+                                    Button(action: {
+                                        viewModel.cancelRouteSelection()
+                                        NotificationCenter.default.post(name: .cancelRouteSelection, object: nil)
+                                    }) {
+                                        Text("Cancel")
+                                            .font(.subheadline)
+                                            .foregroundColor(.secondary)
+                                            .padding(.horizontal, 16)
+                                            .padding(.vertical, 8)
+                                            .background(Color.gray.opacity(0.1))
+                                            .cornerRadius(8)
+                                    }
+                                    
+                                    Spacer()
+                                    
+                                    Button(action: {
+                                        viewModel.confirmRouteBuilding()
+                                        NotificationCenter.default.post(name: .confirmRouteBuilding, object: nil)
+                                    }) {
+                                        HStack {
+                                            Image(systemName: "location.fill")
+                                            Text("Build Route")
+                                        }
+                                        .font(.subheadline)
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 8)
+                                        .background(Color.blue)
+                                        .cornerRadius(8)
+                                    }
+                                }
+                            }
+                            .padding()
+                            .background(.ultraThinMaterial)
+                            .cornerRadius(16)
+                            .shadow(radius: 10)
+                            // .padding(.horizontal)
+                        }
+                        
+                        Spacer()
+                    }
+                    .padding(.bottom, 120) // Lower position - increased from 140
+                }
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .animation(.spring(response: 0.5, dampingFraction: 0.8), value: viewModel.showRouteConfirmation)
+            }
         }
     }
 
     private func performSearch(query: String) {
         guard let userCoordinate = viewModel.userLocation?.coordinate else { return }
+        
+        // Dismiss any existing route confirmation
+        if viewModel.showRouteConfirmation {
+            viewModel.cancelRouteSelection()
+            NotificationCenter.default.post(name: .cancelRouteSelection, object: nil)
+        }
 
         // Set loading state
         viewModel.isLoadingTrail = true

@@ -8,6 +8,12 @@ final class MapViewModel: ObservableObject {
     @Published var userAddress: String = ""
     @Published var trailDifficulty: Int? = nil
     @Published var isLoadingTrail: Bool = false
+    @Published var userHeading: CLHeading?
+    @Published var isHeadingAvailable: Bool = false
+    
+    // Route confirmation state
+    @Published var selectedLocation: CLLocationCoordinate2D?
+    @Published var showRouteConfirmation: Bool = false
 
     private let locationService = LocationService()
     private var cancellables = Set<AnyCancellable>()
@@ -38,6 +44,20 @@ final class MapViewModel: ObservableObject {
             .sink { [weak self] location in
                 self?.userLocation = location
                 self?.scheduleReverseGeocode(location)
+            }
+            .store(in: &cancellables)
+
+        // Observe heading changes
+        locationService.$currentHeading
+            .sink { [weak self] heading in
+                self?.userHeading = heading
+            }
+            .store(in: &cancellables)
+
+        // Observe heading availability
+        locationService.$isHeadingAvailable
+            .sink { [weak self] available in
+                self?.isHeadingAvailable = available
             }
             .store(in: &cancellables)
     }
@@ -126,6 +146,22 @@ final class MapViewModel: ObservableObject {
 
     func centerOnUser() -> CLLocationCoordinate2D? {
         return userLocation?.coordinate
+    }
+    
+    // Route confirmation methods
+    func showRouteConfirmationDialog(for coordinate: CLLocationCoordinate2D) {
+        selectedLocation = coordinate
+        showRouteConfirmation = true
+    }
+    
+    func cancelRouteSelection() {
+        selectedLocation = nil
+        showRouteConfirmation = false
+    }
+    
+    func confirmRouteBuilding() {
+        showRouteConfirmation = false
+        // The actual route building will be handled by the map view
     }
 }
 
