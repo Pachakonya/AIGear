@@ -70,31 +70,50 @@ struct SupportSocialRow: View {
     let subtitle: String
     let url: String
     var body: some View {
-        HStack(spacing: 14) {
-            Image(systemName: icon)
-                .font(.system(size: 22))
-                .foregroundColor(color)
-                .frame(width: 32, height: 32)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.system(size: 17, weight: .semibold, design: .rounded))
-                    .foregroundColor(.white)
-                Text(subtitle)
-                    .font(.system(size: 15, weight: .regular, design: .rounded))
-                    .foregroundColor(.white.opacity(0.8))
-            }
-            Spacer()
-            if let link = URL(string: url) {
-                Link(destination: link) {
+        if let link = URL(string: url) {
+            Link(destination: link) {
+                HStack(spacing: 14) {
+                    Image(systemName: icon)
+                        .font(.system(size: 22))
+                        .foregroundColor(color)
+                        .frame(width: 32, height: 32)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(title)
+                            .font(.system(size: 17, weight: .semibold, design: .rounded))
+                            .foregroundColor(.white)
+                        Text(subtitle)
+                            .font(.system(size: 15, weight: .regular, design: .rounded))
+                            .foregroundColor(.white.opacity(0.8))
+                    }
+                    Spacer()
                     Image(systemName: "arrow.up.right.square")
                         .font(.system(size: 18))
                         .foregroundColor(.white.opacity(0.7))
                 }
+                .padding(10)
+                .background(Color.white.opacity(0.07))
+                .cornerRadius(12)
             }
+        } else {
+            HStack(spacing: 14) {
+                Image(systemName: icon)
+                    .font(.system(size: 22))
+                    .foregroundColor(color)
+                    .frame(width: 32, height: 32)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.system(size: 17, weight: .semibold, design: .rounded))
+                        .foregroundColor(.white)
+                    Text(subtitle)
+                        .font(.system(size: 15, weight: .regular, design: .rounded))
+                        .foregroundColor(.white.opacity(0.8))
+                }
+                Spacer()
+            }
+            .padding(10)
+            .background(Color.white.opacity(0.07))
+            .cornerRadius(12)
         }
-        .padding(10)
-        .background(Color.white.opacity(0.07))
-        .cornerRadius(12)
     }
 }
 

@@ -66,7 +66,7 @@ extension TripSpecView {
         case "summer":
             return "Summer"
         case "shoulder":
-            return "Shoulder (Spring/Fall)"
+            return "Shoulder"
         default:
             return season.capitalized
         }

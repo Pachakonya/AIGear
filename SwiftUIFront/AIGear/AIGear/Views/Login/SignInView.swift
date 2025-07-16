@@ -49,16 +49,18 @@ struct SignInView: View {
                                 .cornerRadius(12)
                                 .foregroundColor(.black)
                                 
-                            Button("Continue") {
+                            Button(action: {
                                 Task { await signIn() }
+                            }) {
+                                Text("Continue")
+                                    .font(.system(size: 18, weight: .semibold, design: .rounded))
+                                    .foregroundColor(.black)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 14)
+                                    .background(Color.white)
+                                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                                    .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 4)
                             }
-                            .font(.system(size: 18, weight: .semibold, design: .rounded))
-                            .foregroundColor(.black)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
-                            .background(Color.white)
-                            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                            .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 4)
                             .disabled(authService.isLoading)
                             if authService.isLoading {
                                 ProgressView()

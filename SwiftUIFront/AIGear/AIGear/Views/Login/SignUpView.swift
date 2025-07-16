@@ -42,16 +42,18 @@ struct SignUpView: View {
                                     .cornerRadius(12)
                                     .foregroundColor(.black)
                                     
-                                Button("Verify") {
+                                Button(action: {
                                     Task { await verify() }
+                                }) {
+                                    Text("Verify")
+                                        .font(.system(size: 18, weight: .semibold, design: .rounded))
+                                        .foregroundColor(.black)
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 14)
+                                        .background(Color.white)
+                                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                                        .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 4)
                                 }
-                                .font(.system(size: 18, weight: .semibold, design: .rounded))
-                                .foregroundColor(.black)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 14)
-                                .background(Color.white)
-                                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                                .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 4)
                                 .disabled(authService.isLoading)
                             } else {
                                 TextField("Email", text: $email)
@@ -75,16 +77,18 @@ struct SignUpView: View {
                                     .cornerRadius(12)
                                     .foregroundColor(.black)
                                     
-                                Button("Continue") {
+                                Button(action: {
                                     Task { await signUp() }
+                                }) {
+                                    Text("Continue")
+                                        .font(.system(size: 18, weight: .semibold, design: .rounded))
+                                        .foregroundColor(.black)
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 14)
+                                        .background(Color.white)
+                                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                                        .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 4)
                                 }
-                                .font(.system(size: 18, weight: .semibold, design: .rounded))
-                                .foregroundColor(.black)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 14)
-                                .background(Color.white)
-                                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                                .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 4)
                                 .disabled(authService.isLoading)
                             }
                             if authService.isLoading {
