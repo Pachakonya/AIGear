@@ -104,24 +104,44 @@ def apple_auth(data: dict = Body(...), db: Session = Depends(get_db)):
         if not apple_user_id:
             raise HTTPException(status_code=400, detail="Invalid Apple token")
         
-        # Check if user exists by Apple ID or email
-        user = db.query(User).filter(
-            (User.email == email) if email else (User.id == apple_user_id)
-        ).first()
+        # Check if user exists by email first
+        user = None
+        if email:
+            user = db.query(User).filter(User.email == email).first()
         
         if not user:
             # Create new user
-            # Use Apple ID as user ID if no email provided
-            user = User(
-                id=apple_user_id,  # Use Apple's sub as the user ID
-                email=email or f"{apple_user_id}@privaterelay.appleid.com",  # Fallback email
-                username=user_info.get("name", {}).get("firstName"),
-                is_verified=True,  # Apple emails are pre-verified
-                hashed_password=""  # No password for OAuth users
-            )
-            db.add(user)
-            db.commit()
-            db.refresh(user)
+            # Generate a unique username
+            name_info = user_info.get("name", {})
+            first_name = name_info.get("firstName", "")
+            last_name = name_info.get("lastName", "")
+            
+            # Generate base username from name or use Apple ID
+            if first_name:
+                base_username = f"{first_name}_{last_name}".strip("_").lower()
+            else:
+                base_username = f"apple_user_{apple_user_id[-8:]}"  # Use last 8 chars of Apple ID
+            
+            # Ensure username is unique by checking database and adding number if needed
+            username = base_username
+            counter = 1
+            while db.query(User).filter(User.username == username).first():
+                username = f"{base_username}_{counter}"
+                counter += 1
+            
+            try:
+                user = User(
+                    email=email or f"{apple_user_id}@privaterelay.appleid.com",  # Fallback email
+                    username=username,
+                    is_verified=True,  # Apple emails are pre-verified
+                    hashed_password=""  # No password for OAuth users
+                )
+                db.add(user)
+                db.commit()
+                db.refresh(user)
+            except IntegrityError:
+                db.rollback()
+                raise HTTPException(status_code=400, detail="User creation failed due to duplicate data")
         
         # Generate JWT token
         jwt_token = create_access_token({"sub": user.id})
