@@ -242,9 +242,6 @@ struct MapContainerView: View {
             NotificationCenter.default.post(name: .cancelRouteSelection, object: nil)
         }
 
-        // Set loading state
-        viewModel.isLoadingTrail = true
-
         let request = MKLocalSearch.Request()
         request.naturalLanguageQuery = query
         request.region = MKCoordinateRegion(center: userCoordinate,
@@ -253,31 +250,19 @@ struct MapContainerView: View {
 
         MKLocalSearch(request: request).start { response, error in
             guard let destination = response?.mapItems.first?.placemark.coordinate else { 
-                // Reset loading state if search fails
-                DispatchQueue.main.async {
-                    self.viewModel.isLoadingTrail = false
-                }
+                print("⚠️ No search results found for: \(query)")
                 return 
             }
 
-            RouteService().fetchRoute(from: userCoordinate, to: destination) { route, conditions in
-                guard let route = route else { 
-                    // Reset loading state if route fetch fails
-                    DispatchQueue.main.async {
-                        self.viewModel.isLoadingTrail = false
-                    }
-                    return 
-                }
+            DispatchQueue.main.async {
+                // Show pin at search result location (same as tap behavior)
+                NotificationCenter.default.post(name: .showPinAtLocation, object: destination)
                 
-                DispatchQueue.main.async {
-                    self.viewModel.updateDifficulty(from: conditions)
-                    NotificationCenter.default.post(name: .drawRouteExternally, object: route)
-                    
-                    // Reset loading state after route is drawn
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                        self.viewModel.isLoadingTrail = false
-                    }
-                }
+                // Show route confirmation dialog (same as tap behavior)
+                self.viewModel.showRouteConfirmationDialog(for: destination)
+                
+                // Center map on the found location
+                NotificationCenter.default.post(name: .centerMapExternally, object: destination)
             }
         }
     }

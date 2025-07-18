@@ -9,6 +9,7 @@ extension Notification.Name {
     static let drawRouteExternally = Notification.Name("drawRouteExternally")
     static let confirmRouteBuilding = Notification.Name("confirmRouteBuilding")
     static let cancelRouteSelection = Notification.Name("cancelRouteSelection")
+    static let showPinAtLocation = Notification.Name("showPinAtLocation")
 }
 
 struct MapboxOutdoorMapView: UIViewRepresentable {
@@ -31,6 +32,7 @@ struct MapboxOutdoorMapView: UIViewRepresentable {
             NotificationCenter.default.addObserver(self, selector: #selector(drawRouteNotification(_:)), name: .drawRouteExternally, object: nil)
             NotificationCenter.default.addObserver(self, selector: #selector(confirmRouteBuilding(_:)), name: .confirmRouteBuilding, object: nil)
             NotificationCenter.default.addObserver(self, selector: #selector(cancelRouteSelection(_:)), name: .cancelRouteSelection, object: nil)
+            NotificationCenter.default.addObserver(self, selector: #selector(showPinAtLocationNotification(_:)), name: .showPinAtLocation, object: nil)
         }
 
         @objc private func centerMapNotification(_ notification: Notification) {
@@ -54,6 +56,11 @@ struct MapboxOutdoorMapView: UIViewRepresentable {
         @objc private func cancelRouteSelection(_ notification: Notification) {
             // Clear the pin annotation
             circleManager?.annotations.removeAll()
+        }
+        
+        @objc private func showPinAtLocationNotification(_ notification: Notification) {
+            guard let coordinate = notification.object as? CLLocationCoordinate2D else { return }
+            showPinAtLocation(coordinate)
         }
 
         @objc func mapTapped(_ sender: UITapGestureRecognizer) {
