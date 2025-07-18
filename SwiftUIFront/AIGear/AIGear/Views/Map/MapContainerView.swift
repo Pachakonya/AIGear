@@ -6,6 +6,8 @@ struct MapContainerView: View {
     @State private var searchQuery = ""
     @State private var is3D = false
     @State private var showSuggestions = false
+    @State private var dragOffset: CGFloat = 0
+    @State private var isDragging = false
     
     var body: some View {
         ZStack(alignment: .top) {
@@ -13,6 +15,13 @@ struct MapContainerView: View {
                 .edgesIgnoringSafeArea(.top)
                 .allowsHitTesting(!viewModel.isLoadingTrail)
                 .onTapGesture {
+                    // Dismiss keyboard if visible
+                    if KeyboardObserver.shared.isKeyboardVisible {
+                        UIApplication.shared.endEditing()
+                        showSuggestions = false
+                        return
+                    }
+                    
                     // Dismiss route confirmation when tapping on map
                     if viewModel.showRouteConfirmation {
                         viewModel.cancelRouteSelection()
@@ -27,7 +36,14 @@ struct MapContainerView: View {
             )
             .frame(height: 200)
             .ignoresSafeArea(edges: .top)
-            .allowsHitTesting(false)
+            .allowsHitTesting(KeyboardObserver.shared.isKeyboardVisible)
+            .onTapGesture {
+                // Dismiss keyboard when tapping on gradient area
+                if KeyboardObserver.shared.isKeyboardVisible {
+                    UIApplication.shared.endEditing()
+                    showSuggestions = false
+                }
+            }
     
             VStack(spacing: 12) {
                 HStack {
@@ -130,6 +146,7 @@ struct MapContainerView: View {
                         }, onCommit: {
                             performSearch(query: searchQuery)
                             showSuggestions = false
+                            UIApplication.shared.endEditing()
                         })
                         .foregroundColor(.primary)
                         .autocapitalization(.none)
@@ -147,6 +164,57 @@ struct MapContainerView: View {
                 .background(
                     RoundedCorner(radius: 28, corners: [.topLeft, .topRight])
                         .fill(Color(.systemGray6).opacity(0.95))
+                )
+                .offset(y: dragOffset)
+                .scaleEffect(isDragging ? max(0.98, 1 - dragOffset / 500) : 1)
+                .opacity(isDragging ? max(0.85, 1 - dragOffset / 150) : 1)
+                .animation(.interactiveSpring(response: 0.15, dampingFraction: 1, blendDuration: 0), value: dragOffset)
+                .animation(.interactiveSpring(response: 0.15, dampingFraction: 1, blendDuration: 0), value: isDragging)
+                .gesture(
+                    DragGesture()
+                        .onChanged { value in
+                            if KeyboardObserver.shared.isKeyboardVisible {
+                                withAnimation(.interactiveSpring(response: 0.1, dampingFraction: 1, blendDuration: 0)) {
+                                    isDragging = true
+                                    dragOffset = max(0, min(100, value.translation.height))
+                                }
+                                
+                                // Single haptic at threshold
+                                if value.translation.height > 20 && value.translation.height < 25 && !isDragging {
+                                    let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+                                    impactFeedback.impactOccurred()
+                                }
+                            }
+                        }
+                        .onEnded { value in
+                            let dismissThreshold: CGFloat = 20
+                            let velocity = value.predictedEndLocation.y - value.location.y
+                            
+                            if (value.translation.height > dismissThreshold || velocity > 100) && KeyboardObserver.shared.isKeyboardVisible {
+                                // Quick dismiss with velocity consideration
+                                let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                                impactFeedback.impactOccurred()
+                                
+                                withAnimation(.easeOut(duration: 0.15)) {
+                                    dragOffset = 100
+                                    UIApplication.shared.endEditing()
+                                    showSuggestions = false
+                                }
+                                
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                    withAnimation(.easeOut(duration: 0.1)) {
+                                        dragOffset = 0
+                                        isDragging = false
+                                    }
+                                }
+                            } else {
+                                // Quick snap back
+                                withAnimation(.interactiveSpring(response: 0.2, dampingFraction: 0.8, blendDuration: 0)) {
+                                    dragOffset = 0
+                                    isDragging = false
+                                }
+                            }
+                        }
                 )
             }
             
