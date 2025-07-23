@@ -5,8 +5,7 @@ struct GearView: View {
     @ObservedObject private var gearVM = GearViewModel.shared
 
     var body: some View {
-        NavigationView {
-            VStack() {
+        VStack() {
                 // Header
                 HStack {
                     Text("Let's hike")
@@ -26,6 +25,7 @@ struct GearView: View {
                     }
                 }
                 .padding(.horizontal)
+                .padding(.top, 16)
 
                 // Checklist banner directly under header
                 if !gearVM.checklistItems.isEmpty {
@@ -79,12 +79,10 @@ struct GearView: View {
                 // .padding(.horizontal)
 
                 Spacer()
-            }
-            .background(Color(.systemGray6).ignoresSafeArea())
-            .navigationBarHidden(true)
-            .sheet(isPresented: $gearVM.showChecklist) {
-                ChecklistSheet()
-            }
+        }
+        .background(Color(.systemGray6).ignoresSafeArea())
+        .sheet(isPresented: $gearVM.showChecklist) {
+            ChecklistSheet()
         }
     }
 }
