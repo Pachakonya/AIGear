@@ -126,6 +126,31 @@ struct MapContainerView: View {
                     .opacity(viewModel.isLoadingTrail ? 0.5 : 1.0)
                 }
 
+                // Let's hike button (floating above search bar)
+                if viewModel.hasBuiltRoute {
+                    HStack {
+                        Spacer()
+                        Button(action: {
+                            NotificationCenter.default.post(name: .navigateToHikeAssistant, object: nil)
+                            viewModel.hasBuiltRoute = false
+                        }) {
+                            Text("Let's hike")
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.black)
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 12)
+                                .background(.ultraThinMaterial)
+                                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                                .shadow(radius: 4)
+                        }
+                        Spacer()
+                    }
+                    .padding(.bottom, 8)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .animation(.spring(response: 0.5, dampingFraction: 0.8), value: viewModel.hasBuiltRoute)
+                }
+
                 // Bottom Card (Greeting + Search Bar)
                 VStack(spacing: 16) {
                     Capsule()
@@ -272,7 +297,6 @@ struct MapContainerView: View {
                                         NotificationCenter.default.post(name: .confirmRouteBuilding, object: nil)
                                     }) {
                                         HStack {
-                                            Image(systemName: "location.fill")
                                             Text("Build Route")
                                         }
                                         .font(.subheadline)
@@ -346,5 +370,3 @@ struct RoundedCorner: Shape {
         return Path(path.cgPath)
     }
 }
-
-

@@ -10,6 +10,7 @@ extension Notification.Name {
     static let confirmRouteBuilding = Notification.Name("confirmRouteBuilding")
     static let cancelRouteSelection = Notification.Name("cancelRouteSelection")
     static let showPinAtLocation = Notification.Name("showPinAtLocation")
+    static let navigateToHikeAssistant = Notification.Name("navigateToHikeAssistant")
 }
 
 struct MapboxOutdoorMapView: UIViewRepresentable {
@@ -107,9 +108,10 @@ struct MapboxOutdoorMapView: UIViewRepresentable {
                 return
             }
 
-            // Set loading state
+            // Set loading state and reset route built state
             DispatchQueue.main.async {
                 self.viewModel.isLoadingTrail = true
+                self.viewModel.hasBuiltRoute = false
             }
 
             RouteService().fetchRoute(from: origin, to: destination) { route, conditions in
@@ -129,9 +131,10 @@ struct MapboxOutdoorMapView: UIViewRepresentable {
                     // Clear the pin after route is drawn
                     self.circleManager?.annotations.removeAll()
                     
-                    // Reset loading state after route is drawn
+                    // Reset loading state after route is drawn and mark route as built
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
                         self.viewModel.isLoadingTrail = false
+                        self.viewModel.hasBuiltRoute = true
                     }
                 }
             }

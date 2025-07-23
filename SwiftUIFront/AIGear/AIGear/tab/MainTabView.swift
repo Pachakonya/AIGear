@@ -1,5 +1,10 @@
 import SwiftUI
 
+// Import notification names
+//extension Notification.Name {
+//    static let navigateToHikeAssistant = Notification.Name("navigateToHikeAssistant")
+//}
+
 struct MainTabView: View {
     @State private var selectedTab = 0 // Center tab (ChatBot) is default
     @StateObject private var gearVM = GearViewModel.shared
@@ -32,6 +37,9 @@ struct MainTabView: View {
                     selectedTab = 2
                     gearVM.shouldNavigateToGear = false
                 }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .navigateToHikeAssistant)) { _ in
+                selectedTab = 1 // Navigate to ChatbotView (hike assistant)
             }
 
             // Overlay the horse icon, ignoring safe area

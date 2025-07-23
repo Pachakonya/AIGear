@@ -40,7 +40,7 @@ struct LaunchScreenView: View {
                         .padding(.leading, 40)
 
                         // Headline
-                        Text("The Better\nWay To Plan\nHike Outfit")
+                        Text("The Better\nWay To Plan\nYour Hike")
                             .font(.custom("DMSans-Regular", size: 44))
                             .foregroundColor(.black)
                             .multilineTextAlignment(.leading)
