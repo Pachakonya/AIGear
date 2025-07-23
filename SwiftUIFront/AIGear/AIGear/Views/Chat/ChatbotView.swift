@@ -60,7 +60,8 @@ struct ChatbotView: View {
                                 .id(message.id)
                             }
                         }
-                        .padding()
+                        .padding(.horizontal)
+                        .padding(.vertical, 8)
                     }
                     .onChange(of: chatHistory.count) { _ in   
                         withAnimation {
@@ -83,19 +84,34 @@ struct ChatbotView: View {
                             sendMessage()
                         }
                     
-                    // Trip-spec settings button (replaces send icon)
-                    Button(action: {
-                        showTripSpecSheet = true
-                    }) {
-                        Image(systemName: "slider.horizontal.3")
-                            .foregroundColor(.white)
-                            .frame(width: 40, height: 40)
-                            .background(Color.black)
-                            .clipShape(Circle())
+                    // Show send button when there's text, preference button when input is empty
+                    if !userInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        // Send button when there's text in input
+                        Button(action: {
+                            sendMessage()
+                        }) {
+                            Image(systemName: "arrow.up")
+                                .foregroundColor(.white)
+                                .frame(width: 40, height: 40)
+                                .background(Color.black)
+                                .clipShape(Circle())
+                        }
+                        .disabled(isLoading)
+                    } else {
+                        // Trip-spec settings button when input is empty
+                        Button(action: {
+                            showTripSpecSheet = true
+                        }) {
+                            Image(systemName: "slider.horizontal.3")
+                                .foregroundColor(.white)
+                                .frame(width: 40, height: 40)
+                                .background(Color.black)
+                                .clipShape(Circle())
+                        }
                     }
                 }
                 .padding(.horizontal)
-                .padding(.vertical, 26)
+                .padding(.vertical, 20)
                 .background(Color.white.opacity(0.95))
             }
         }

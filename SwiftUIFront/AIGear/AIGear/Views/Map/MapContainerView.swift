@@ -153,10 +153,10 @@ struct MapContainerView: View {
 
                 // Bottom Card (Greeting + Search Bar)
                 VStack(spacing: 16) {
-                    Capsule()
-                        .frame(width: 40, height: 5)
-                        .foregroundColor(Color.gray.opacity(0.3))
-                        .padding(.top, 8)
+                    // Capsule()
+                    //     .frame(width: 40, height: 5)
+                    //     .foregroundColor(Color.gray.opacity(0.3))
+                    //     .padding(.top, 8)
                     // Search Bar inside card
                     HStack {
                         Image(systemName: "magnifyingglass")
@@ -185,10 +185,11 @@ struct MapContainerView: View {
                     .opacity(viewModel.isLoadingTrail ? 0.5 : 1.0)
 
                 }
+                .padding(.top, 16)
                 .padding(.bottom, 24)
                 .background(
                     RoundedCorner(radius: 28, corners: [.topLeft, .topRight])
-                        .fill(Color(.systemGray6).opacity(0.95))
+                        .fill(Color(.white))
                 )
                 .offset(y: dragOffset)
                 .scaleEffect(isDragging ? max(0.98, 1 - dragOffset / 500) : 1)
