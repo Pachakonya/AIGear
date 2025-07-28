@@ -407,8 +407,29 @@ struct FormattedTextView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             ForEach(parseText(), id: \.self) { section in
-                if section.hasPrefix("**") && section.hasSuffix("**") {
-                    // Bold headers
+                if section.contains("**") && (section.hasSuffix(":") || section.hasSuffix(":**")) {
+                    // Bold headers (like **Clothing:** or **Equipment:**)
+                    let cleanedText = section.replacingOccurrences(of: "**", with: "")
+                    HStack(alignment: .center, spacing: 8) {
+                        // Extract emoji if present
+                        let parts = cleanedText.components(separatedBy: " ")
+                        if parts.count > 1 && parts[0].count <= 2 {
+                            // First part might be emoji
+                            Text(parts[0])
+                                .font(.system(size: 18))
+                            Text(parts.dropFirst().joined(separator: " "))
+                                .font(.custom("DMSans-Bold", size: 16))
+                                .foregroundColor(isUser ? .white : .black)
+                        } else {
+                            Text(cleanedText)
+                                .font(.custom("DMSans-Bold", size: 16))
+                                .foregroundColor(isUser ? .white : .black)
+                        }
+                        Spacer()
+                    }
+                    .padding(.top, 4)
+                } else if section.hasPrefix("**") && section.hasSuffix("**") {
+                    // Other bold text
                     Text(section.replacingOccurrences(of: "**", with: ""))
                         .font(.custom("DMSans-SemiBold", size: 16))
                         .foregroundColor(isUser ? .white : .black)

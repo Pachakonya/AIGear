@@ -75,7 +75,7 @@ struct AnyCodable: Codable {
 class NetworkService {
     static let shared = NetworkService()
     private let baseURL = "https://api.aigear.tech"
-//    private let baseURL = "http://192.168.100.77:8000" // Local Docker
+//    private let baseURL = "http://172.20.10.8:8000" // Hotspot IP
 
     private func addAuthHeader(to request: inout URLRequest) {
         if let token = AuthService.shared.getAuthToken() {

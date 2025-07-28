@@ -11,7 +11,15 @@ from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 from src.auth.dependencies import get_current_user
 from src.auth.models import User
-from .weather_service import fetch_current_weather, sample_coordinates
+from .weather_service import (
+    fetch_current_weather, 
+    fetch_comprehensive_weather,
+    fetch_weather_forecast,
+    fetch_hourly_weather,
+    get_weather_alerts,
+    sample_coordinates,
+    sample_trail_endpoints
+)
 
 router = APIRouter(prefix="/aiengine", tags=["AIEngine"])
 
@@ -61,30 +69,10 @@ def gear_recommendation_tool(
         if elevation is None and trail.elevation_gain_meters:
             elevation = trail.elevation_gain_meters
     
-    # ⛅️ Auto-fetch current weather if not supplied
+    # ⛅️ Only auto-fetch weather if explicitly requested via weather parameter
     temp_c: Optional[float] = None  # Track temperature for advice later
-    if weather is None and trail and trail.coordinates:
-        from .weather_service import sample_coordinates  # local import to avoid circular
-        coords = trail.coordinates
-        try:
-            samples = sample_coordinates(coords, km_between=7.0)
-            if samples:
-                descriptions = []
-                temps = []
-                for lat, lon in samples:
-                    data = fetch_current_weather(lat, lon)
-                    if data:
-                        descriptions.append(data["description"])
-                        temps.append(data["temp"])
-
-                if descriptions:
-                    # Choose the most frequent description
-                    weather = max(set(descriptions), key=descriptions.count)
-                if temps:
-                    temp_c = sum(temps) / len(temps)
-        except Exception:
-            # Fallback: leave weather as None if any issue occurs
-            pass
+    # Note: Removed automatic weather fetching to avoid unwanted weather info in responses
+    # Weather will only be included if explicitly passed as a parameter
     
     # Generate recommendations based on conditions
     if terrain:
@@ -325,7 +313,7 @@ def chat_tool(question: str) -> str:
     return response.choices[0].message.content
 
 def weather_conditions_tool(detail: bool = False, user_id: str = None) -> str:
-    """Return aggregated current weather along the latest trail for the user."""
+    """Return aggregated current weather along the latest trail for the user with enhanced data from One Call API 3.0."""
     db = next(get_db())
     # Fetch latest trail
     query = db.query(TrailData)
@@ -336,35 +324,86 @@ def weather_conditions_tool(detail: bool = False, user_id: str = None) -> str:
     if not trail or not trail.coordinates:
         return "No trail data available. Please upload a trail first."
 
-    # Sample coordinates (reuse helper)
-    samples = sample_coordinates(trail.coordinates, km_between=5.0)
+    # Sample only 2 strategic points (middle and end) for minimal API usage
+    samples = sample_trail_endpoints(trail.coordinates)
     if not samples:
         return "Coordinates could not be parsed for weather lookup."
 
     descriptions = []
     temps = []
+    weather_alerts = []
+    humidity_values = []
+    wind_speeds = []
+    
+    successful_calls = 0
+    
     for lat, lon in samples:
-        data = fetch_current_weather(lat, lon)
-        if data:
-            descriptions.append(data["description"])
-            temps.append(data["temp"])
+        # Use comprehensive weather data with current weather only
+        weather_data = fetch_comprehensive_weather(
+            lat, lon, 
+            exclude=["minutely", "hourly", "daily"]
+        )
+        
+        if weather_data and "current" in weather_data:
+            current = weather_data["current"]
+            weather_list = current.get("weather", [])
+            
+            if weather_list:
+                descriptions.append(weather_list[0].get("description", "unknown"))
+                temps.append(current.get("temp", 0))
+                humidity_values.append(current.get("humidity", 0))
+                wind_speeds.append(current.get("wind_speed", 0))
+                successful_calls += 1
+            
+            # Collect any alerts
+            alerts = weather_data.get("alerts", [])
+            for alert in alerts:
+                alert_desc = alert.get("event", "Weather Alert")
+                if alert_desc not in weather_alerts:
+                    weather_alerts.append(alert_desc)
 
     if not descriptions:
-        return "Weather service unavailable or API limit reached. Try again later."
+        if successful_calls == 0:
+            return ("⚠️ Weather service currently unavailable. This might be due to:\n"
+                   "• API rate limits reached\n"
+                   "• Service maintenance\n"
+                   "• Network connectivity issues\n\n"
+                   "💡 Try again in a few minutes, or use the manual trip details (slider icon) for gear recommendations.")
+        else:
+            return "Weather data partially available but incomplete. Try again later."
 
-    # Aggregate
+    # Enhanced aggregation
     common_desc = max(set(descriptions), key=descriptions.count)
     avg_temp = sum(temps) / len(temps) if temps else None
+    avg_humidity = sum(humidity_values) / len(humidity_values) if humidity_values else None
+    avg_wind = sum(wind_speeds) / len(wind_speeds) if wind_speeds else None
 
     if detail:
         breakdown = "\n".join([f"• {d.capitalize()}, {t:.1f}°C" for d, t in zip(descriptions, temps)])
-        return (
-            f"Current weather along your trail (sampled every 5 km):\n"
-            f"Overall: {common_desc.capitalize()}, {avg_temp:.1f}°C on average\n\n"
-            f"Breakdown:\n{breakdown}"
+        result = (
+            f"🌤️ **Current Weather Along Your Trail** (middle & end points):\n"
+            f"**Overall Conditions:** {common_desc.capitalize()}, {avg_temp:.1f}°C average\n"
         )
+        
+        if avg_humidity:
+            result += f"**Humidity:** {avg_humidity:.0f}%\n"
+        if avg_wind:
+            result += f"**Wind Speed:** {avg_wind:.1f} m/s\n"
+        
+        if weather_alerts:
+            result += f"⚠️ **Active Alerts:** {', '.join(weather_alerts)}\n"
+        
+        result += f"\n**Detailed Breakdown:**\n{breakdown}"
+        result += f"\n\n📊 **Data Quality:** {successful_calls}/{len(samples)} sampling points successful"
+        
+        return result
     else:
-        return f"Current weather: {common_desc.capitalize()}, {avg_temp:.1f}°C (averaged along the trail)."
+        result = f"🌤️ Current weather: {common_desc.capitalize()}, {avg_temp:.1f}°C"
+        if avg_humidity:
+            result += f" (humidity: {avg_humidity:.0f}%)"
+        if weather_alerts:
+            result += f" ⚠️ Alerts: {', '.join(weather_alerts)}"
+        return result
 
 # Tool definitions for OpenAI function calling
 TOOLS = [
@@ -503,6 +542,151 @@ TOOL_FUNCTIONS = {
     "chat_tool": chat_tool
 }
 
+# Weather endpoints using One Call API 3.0
+class WeatherRequest(BaseModel):
+    lat: float
+    lon: float
+
+class WeatherForecastRequest(BaseModel):
+    lat: float
+    lon: float
+    days: Optional[int] = 7
+
+class WeatherHourlyRequest(BaseModel):
+    lat: float
+    lon: float
+    hours: Optional[int] = 24
+
+@router.post("/weather/current")
+async def get_current_weather(
+    request: WeatherRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Get current weather for a specific location using One Call API 3.0."""
+    weather_data = fetch_comprehensive_weather(
+        request.lat, 
+        request.lon, 
+        exclude=["minutely", "hourly", "daily", "alerts"]
+    )
+    
+    if not weather_data:
+        raise HTTPException(
+            status_code=503, 
+            detail="Weather service unavailable. Please try again later."
+        )
+    
+    return weather_data
+
+@router.post("/weather/forecast")
+async def get_weather_forecast(
+    request: WeatherForecastRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Get weather forecast for specified number of days using One Call API 3.0."""
+    weather_data = fetch_weather_forecast(request.lat, request.lon, request.days)
+    
+    if not weather_data:
+        raise HTTPException(
+            status_code=503, 
+            detail="Weather service unavailable. Please try again later."
+        )
+    
+    return weather_data
+
+@router.post("/weather/hourly")
+async def get_hourly_weather(
+    request: WeatherHourlyRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Get hourly weather forecast using One Call API 3.0."""
+    weather_data = fetch_hourly_weather(request.lat, request.lon, request.hours)
+    
+    if not weather_data:
+        raise HTTPException(
+            status_code=503, 
+            detail="Weather service unavailable. Please try again later."
+        )
+    
+    return weather_data
+
+@router.post("/weather/alerts")
+async def get_weather_alerts(
+    request: WeatherRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Get weather alerts for a location using One Call API 3.0."""
+    alerts = get_weather_alerts(request.lat, request.lon)
+    
+    if alerts is None:
+        raise HTTPException(
+            status_code=503, 
+            detail="Weather service unavailable. Please try again later."
+        )
+    
+    return {"alerts": alerts}
+
+@router.post("/weather/trail-conditions")
+async def get_trail_weather_conditions(
+    current_user: User = Depends(get_current_user)
+):
+    """Get comprehensive weather conditions along the user's latest trail."""
+    db = next(get_db())
+    
+    # Fetch latest trail
+    trail = (
+        db.query(TrailData)
+        .filter(TrailData.user_id == current_user.id)
+        .order_by(TrailData.id.desc())
+        .first()
+    )
+    
+    if not trail or not trail.coordinates:
+        raise HTTPException(
+            status_code=404,
+            detail="No trail data available. Please upload a trail first."
+        )
+    
+    # Sample only 2 strategic points (middle and end) for minimal API usage
+    samples = sample_trail_endpoints(trail.coordinates)
+    if not samples:
+        raise HTTPException(
+            status_code=400,
+            detail="Coordinates could not be parsed for weather lookup."
+        )
+    
+    # Get weather data for each sample point
+    weather_points = []
+    for i, (lat, lon) in enumerate(samples):
+        weather_data = fetch_comprehensive_weather(
+            lat, lon, 
+            exclude=["minutely", "hourly"]  # Get current, daily, and alerts
+        )
+        
+        if weather_data:
+            weather_points.append({
+                "point_index": i,
+                "lat": lat,
+                "lon": lon,
+                "current": weather_data.get("current"),
+                "daily_forecast": weather_data.get("daily", [])[:3],  # 3-day forecast
+                "alerts": weather_data.get("alerts", [])
+            })
+    
+    if not weather_points:
+        raise HTTPException(
+            status_code=503,
+            detail="Weather service unavailable or API limit reached. Try again later."
+        )
+    
+    return {
+        "trail_weather": weather_points,
+        "summary": {
+            "total_points": len(weather_points),
+            "trail_length_km": (trail.distance_meters or 0) / 1000,
+            "elevation_gain_m": trail.elevation_gain_meters or 0
+        }
+    }
+
 @router.post("/orchestrate", response_model=OrchestratorResponse)
 async def orchestrate(
     request: PromptRequest,
@@ -533,10 +717,10 @@ Available tools:
 - gear_recommendation_tool: For gear/equipment suggestions based on conditions
 - wardrobe_inventory_tool: To check/manage items the user owns
 - trail_analysis_tool: To analyze trail difficulty and elevation
-- weather_conditions_tool: To fetch aggregated real-time weather along the trail
+- weather_conditions_tool: ONLY when user specifically asks about weather/conditions
 - chat_tool: For general hiking/travel questions
 
-Always choose the most specific tool for the task. Only use chat_tool if no other tool fits.
+IMPORTANT: Only use weather_conditions_tool when the user explicitly asks about weather, conditions, or forecast. Do NOT call it automatically for gear suggestions unless weather is specifically mentioned.
 {trail_context}
 When the user asks for gear recommendations without specifying conditions, use the trail data context to inform your parameters."""
 

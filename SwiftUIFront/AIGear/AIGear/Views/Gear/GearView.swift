@@ -95,8 +95,13 @@ struct ChecklistBanner: View {
             Image(systemName: "checklist")
                 .font(.system(size: 24))
                 .foregroundColor(.black)
-            Text("Checklist ready for your hike")
-                .font(.custom("DMSans-Regular", size: 16))
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Checklist ready for your hike")
+                    .font(.custom("DMSans-Regular", size: 16))
+                Text("\(gearVM.checkedItemsCount)/\(gearVM.totalItemsCount) items checked")
+                    .font(.custom("DMSans-Regular", size: 12))
+                    .foregroundColor(.gray)
+            }
             Spacer()
             Button(action: { gearVM.showChecklist = true }) {
                 Text("Open")
@@ -141,6 +146,12 @@ struct ChecklistSheet: View {
             }
             .navigationTitle("Hike Checklist")
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Clear All") {
+                        gearVM.clearChecklist()
+                    }
+                    .foregroundColor(.red)
+                }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { gearVM.showChecklist = false }
                 }
