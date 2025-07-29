@@ -10,6 +10,16 @@ struct UserData: Codable {
     let id: String
     let email: String
     let username: String?
+    let age: Int?
+    let gender: String?
+    let fitness_level: String?
+    let hiking_experience_years: Double?
+    let profile_completed: Bool?
+    
+    // Computed property to safely check profile completion
+    var isProfileCompleted: Bool {
+        return profile_completed ?? false
+    }
 }
 
 struct LoginRequest: Codable {
@@ -45,8 +55,8 @@ class AuthService: ObservableObject {
     @Published var currentUser: UserData?
     @Published var isLoading = false
     
-    private let baseURL = "https://api.aigear.tech"
-//    private let baseURL = "http://172.20.10.8:8000" // Hotspot IP
+//    private let baseURL = "https://api.aigear.tech"
+    private let baseURL = "http://172.20.10.8:8000" // Hotspot IP
     private let tokenKey = "auth_token"
     private let userKey = "user_data"
     
@@ -71,6 +81,9 @@ class AuthService: ObservableObject {
         Task { @MainActor in
             self.currentUser = user
             self.isAuthenticated = true
+            
+            // Notify observers of user data change
+            NotificationCenter.default.post(name: NSNotification.Name("UserDataChanged"), object: nil)
         }
     }
     
@@ -83,6 +96,37 @@ class AuthService: ObservableObject {
     
     func getAuthToken() -> String? {
         return UserDefaults.standard.string(forKey: tokenKey)
+    }
+    
+    // Method to refresh current user data from backend
+    func refreshCurrentUser(completion: @escaping (Bool) -> Void) {
+        NetworkService.shared.getCurrentUser { [weak self] result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let userResponse):
+                    // Convert UserResponse to UserData
+                    let userData = UserData(
+                        id: userResponse.id,
+                        email: userResponse.email,
+                        username: userResponse.username,
+                        age: userResponse.age,
+                        gender: userResponse.gender,
+                        fitness_level: userResponse.fitness_level,
+                        hiking_experience_years: userResponse.hiking_experience_years,
+                        profile_completed: userResponse.profile_completed
+                    )
+                    
+                    // Update stored user data
+                    if let token = self?.getAuthToken() {
+                        self?.storeAuth(token: token, user: userData)
+                    }
+                    completion(true)
+                    
+                case .failure(_):
+                    completion(false)
+                }
+            }
+        }
     }
     
     func signIn(email: String, password: String) async throws -> Bool {

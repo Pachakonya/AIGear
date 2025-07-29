@@ -18,14 +18,33 @@ class UserResponse(BaseModel):
     id: str
     email: str
     username: Optional[str] = None
+    age: Optional[int] = None
+    gender: Optional[str] = None
+    fitness_level: Optional[str] = None
+    hiking_experience_years: Optional[float] = None
+    profile_completed: Optional[bool] = False
 
 class TokenResponse(BaseModel):
     access_token: str
-    token_type: str
+    token_type: str = "bearer"
     user: UserResponse
 
 class MessageResponse(BaseModel):
     message: str
+
+# Profile schemas (NEW)
+class ProfileUpdate(BaseModel):
+    age: int
+    gender: str
+    fitness_level: str
+    hiking_experience_years: float
+
+class ProfileResponse(BaseModel):
+    age: int
+    gender: str
+    fitness_level: str
+    hiking_experience_years: float
+    profile_completed: bool
 
 # Email verification schemas
 class SendCodeRequest(BaseModel):

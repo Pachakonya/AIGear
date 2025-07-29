@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Boolean, DateTime
+from sqlalchemy import Column, String, Boolean, DateTime, Integer, Float
 from sqlalchemy.sql import func
 from src.database import Base
 import uuid
@@ -11,5 +11,13 @@ class User(Base):
     username = Column(String, unique=True, index=True, nullable=True)
     hashed_password = Column(String, nullable=False)
     is_verified = Column(Boolean, default=False)# Apple Sign-In user ID
+    
+    # Profile fields
+    age = Column(Integer, nullable=True)
+    gender = Column(String, nullable=True)  # "Male", "Female", "Other"
+    fitness_level = Column(String, nullable=True)  # "Beginner", "Intermediate", "Advanced"
+    hiking_experience_years = Column(Float, nullable=True)
+    profile_completed = Column(Boolean, default=False)
+    
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

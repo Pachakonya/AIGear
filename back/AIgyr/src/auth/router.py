@@ -3,7 +3,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from src.auth.schemas import (
     UserCreate, UserLogin, UserVerify, TokenResponse, UserResponse,
-    SendCodeRequest, SendCodeResponse, VerifyCodeRequest, VerifyCodeResponse
+    SendCodeRequest, SendCodeResponse, VerifyCodeRequest, VerifyCodeResponse,
+    ProfileUpdate, ProfileResponse, MessageResponse
 )
 from src.auth.service import create_user, authenticate_user, delete_user_account
 from src.auth.utils import create_access_token
@@ -22,6 +23,19 @@ import jwt
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
+def create_user_response(user: User) -> UserResponse:
+    """Helper function to safely create UserResponse from User model"""
+    return UserResponse(
+        id=user.id,
+        email=user.email,
+        username=user.username,
+        age=user.age,
+        gender=user.gender,
+        fitness_level=user.fitness_level,
+        hiking_experience_years=user.hiking_experience_years,
+        profile_completed=user.profile_completed if user.profile_completed is not None else False
+    )
+
 @router.post("/register", response_model=UserResponse, status_code=201)
 def register(user: UserCreate, db: Session = Depends(get_db)):
     try:
@@ -30,7 +44,7 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
         db.rollback()
         raise HTTPException(status_code=409, detail="Email already exists")
     # In production, send code via email
-    return UserResponse(id=db_user.id, email=db_user.email, username=db_user.username)
+    return create_user_response(db_user)
 
 @router.post("/login", response_model=TokenResponse)
 def login(user: UserLogin, db: Session = Depends(get_db)):
@@ -41,13 +55,72 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
     return TokenResponse(
         access_token=token,
         token_type="bearer",
-        user=UserResponse(id=db_user.id, email=db_user.email, username=db_user.username)
+        user=create_user_response(db_user)
     )
 
 @router.delete("/delete-account", summary="Delete current user account")
 def delete_account(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     delete_user_account(current_user, db)
     return {"msg": "Account deleted"}
+
+@router.get("/me", response_model=UserResponse)
+def get_current_user_info(current_user: User = Depends(get_current_user)):
+    return create_user_response(current_user)
+
+@router.put("/profile", response_model=ProfileResponse)
+def update_profile(
+    profile_data: ProfileUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Validate age (must be greater than 4 as per frontend validation)
+    if profile_data.age <= 4:
+        raise HTTPException(status_code=400, detail="Age must be greater than 4")
+    
+    # Validate gender options
+    valid_genders = ["Male", "Female", "Other"]
+    if profile_data.gender not in valid_genders:
+        raise HTTPException(status_code=400, detail="Gender must be one of: Male, Female, Other")
+    
+    # Validate fitness level options
+    valid_fitness_levels = ["Beginner", "Intermediate", "Advanced"]
+    if profile_data.fitness_level not in valid_fitness_levels:
+        raise HTTPException(status_code=400, detail="Fitness level must be one of: Beginner, Intermediate, Advanced")
+    
+    # Validate hiking experience (must be >= 0)
+    if profile_data.hiking_experience_years < 0:
+        raise HTTPException(status_code=400, detail="Hiking experience cannot be negative")
+    
+    # Update user profile
+    current_user.age = profile_data.age
+    current_user.gender = profile_data.gender
+    current_user.fitness_level = profile_data.fitness_level
+    current_user.hiking_experience_years = profile_data.hiking_experience_years
+    current_user.profile_completed = True
+    
+    db.commit()
+    db.refresh(current_user)
+    
+    return ProfileResponse(
+        age=current_user.age,
+        gender=current_user.gender,
+        fitness_level=current_user.fitness_level,
+        hiking_experience_years=current_user.hiking_experience_years,
+        profile_completed=current_user.profile_completed
+    )
+
+@router.get("/profile", response_model=ProfileResponse)
+def get_profile(current_user: User = Depends(get_current_user)):
+    if not current_user.profile_completed:
+        raise HTTPException(status_code=404, detail="Profile not completed")
+    
+    return ProfileResponse(
+        age=current_user.age,
+        gender=current_user.gender,
+        fitness_level=current_user.fitness_level,
+        hiking_experience_years=current_user.hiking_experience_years,
+        profile_completed=current_user.profile_completed
+    )
 
 @router.post("/google", response_model=TokenResponse)
 def google_auth(data: dict = Body(...), db: Session = Depends(get_db)):
@@ -68,7 +141,7 @@ def google_auth(data: dict = Body(...), db: Session = Depends(get_db)):
         return TokenResponse(
             access_token=jwt_token,
             token_type="bearer",
-            user=UserResponse(id=user.id, email=user.email, username=user.username)
+            user=create_user_response(user)
         )
     except Exception as e:
         raise HTTPException(status_code=400, detail="Invalid Google token")
@@ -104,10 +177,8 @@ def apple_auth(data: dict = Body(...), db: Session = Depends(get_db)):
         if not apple_user_id:
             raise HTTPException(status_code=400, detail="Invalid Apple token")
         
-        # Check if user exists by email first
-        user = None
-        if email:
-            user = db.query(User).filter(User.email == email).first()
+        # Check if user already exists
+        user = db.query(User).filter(User.email == email).first() if email else None
         
         if not user:
             # Create new user
@@ -148,7 +219,7 @@ def apple_auth(data: dict = Body(...), db: Session = Depends(get_db)):
         return TokenResponse(
             access_token=jwt_token,
             token_type="bearer",
-            user=UserResponse(id=user.id, email=user.email, username=user.username)
+            user=create_user_response(user)
         )
         
     except Exception as e:

@@ -1,6 +1,34 @@
 import Foundation
 import CoreLocation
 
+// MARK: - Profile Models (NEW - added for profile functionality)
+struct ProfileUpdateRequest: Codable {
+    let age: Int
+    let gender: String
+    let fitness_level: String
+    let hiking_experience_years: Double
+}
+
+struct ProfileResponse: Codable {
+    let age: Int
+    let gender: String
+    let fitness_level: String
+    let hiking_experience_years: Double
+    let profile_completed: Bool
+}
+
+struct UserResponse: Codable {
+    let id: String
+    let email: String
+    let username: String?
+    let age: Int?
+    let gender: String?
+    let fitness_level: String?
+    let hiking_experience_years: Double?
+    let profile_completed: Bool
+}
+
+// MARK: - Original Models (RESTORED)
 struct GearRequest: Codable {
     let weather: String
     let trail_condition: String
@@ -74,8 +102,8 @@ struct AnyCodable: Codable {
 
 class NetworkService {
     static let shared = NetworkService()
-    private let baseURL = "https://api.aigear.tech"
-//    private let baseURL = "http://172.20.10.8:8000" // Hotspot IP
+//    private let baseURL = "https://api.aigear.tech"
+    private let baseURL = "http://172.20.10.8:8000" // Hotspot IP
 
     private func addAuthHeader(to request: inout URLRequest) {
         if let token = AuthService.shared.getAuthToken() {
@@ -83,6 +111,94 @@ class NetworkService {
         }
     }
     
+    // MARK: - Profile Methods (NEW)
+    func updateProfile(
+        age: Int,
+        gender: String,
+        fitnessLevel: String,
+        hikingExperience: Double,
+        completion: @escaping (Result<ProfileResponse, Error>) -> Void
+    ) {
+        guard let url = URL(string: "\(baseURL)/auth/profile") else {
+            return completion(.failure(NSError(domain: "Invalid URL", code: 400)))
+        }
+        
+        let body = ProfileUpdateRequest(
+            age: age,
+            gender: gender,
+            fitness_level: fitnessLevel,
+            hiking_experience_years: hikingExperience
+        )
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        addAuthHeader(to: &request)
+        
+        do {
+            request.httpBody = try JSONEncoder().encode(body)
+        } catch {
+            return completion(.failure(error))
+        }
+        
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            if let error = error {
+                return completion(.failure(error))
+            }
+            
+            // Check for HTTP errors
+            if let httpResponse = response as? HTTPURLResponse {
+                if httpResponse.statusCode >= 400 {
+                    let errorMessage = "HTTP Error: \(httpResponse.statusCode)"
+                    if let data = data, let errorBody = String(data: data, encoding: .utf8) {
+                        print("Error response: \(errorBody)")
+                    }
+                    return completion(.failure(NSError(domain: errorMessage, code: httpResponse.statusCode)))
+                }
+            }
+            
+            guard let data = data else {
+                return completion(.failure(NSError(domain: "No Data", code: 404)))
+            }
+            
+            do {
+                let decoded = try JSONDecoder().decode(ProfileResponse.self, from: data)
+                completion(.success(decoded))
+            } catch {
+                print("Decoding error: \(error)")
+                completion(.failure(error))
+            }
+        }.resume()
+    }
+    
+    func getCurrentUser(completion: @escaping (Result<UserResponse, Error>) -> Void) {
+        guard let url = URL(string: "\(baseURL)/auth/me") else {
+            return completion(.failure(NSError(domain: "Invalid URL", code: 400)))
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        addAuthHeader(to: &request)
+        
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            if let error = error {
+                return completion(.failure(error))
+            }
+            
+            guard let data = data else {
+                return completion(.failure(NSError(domain: "No Data", code: 404)))
+            }
+            
+            do {
+                let decoded = try JSONDecoder().decode(UserResponse.self, from: data)
+                completion(.success(decoded))
+            } catch {
+                completion(.failure(error))
+            }
+        }.resume()
+    }
+    
+    // MARK: - Original Methods (RESTORED)
     func uploadTrailData(
         coordinates: [CLLocationCoordinate2D],
         distance: Double,

@@ -4,6 +4,7 @@ struct ProfileView: View {
     @StateObject private var viewModel = ProfileViewModel()
     @State private var showingSignOutAlert = false
     @State private var showingDeleteAlert = false
+    @State private var showingEditProfile = false
     @State private var isDeleting = false
     
     var body: some View {
@@ -28,18 +29,52 @@ struct ProfileView: View {
                 }
                 .padding(.top)
                 
-                // // Profile Options
-                // VStack(spacing: 0) {
-                //     NavigationLink(destination: SettingsView()) {
-                //         ProfileOptionRow(icon: "gear", title: "Settings", action: {})
-                //     }
-                //     // ProfileOptionRow(icon: "bell", title: "Notifications", action: {})
-                   
-                // }
-                // .background(Color(.systemGray6))
-                // .cornerRadius(12)
-                // .padding(.horizontal)
-                
+                // My Profile Section
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Profile")
+                        .font(.headline)
+                        .padding(.leading)
+                    
+                    VStack(spacing: 0) {
+                        Button(action: {
+                            // Just show profile info, not editable
+                        }) {
+                            HStack {
+                                Image(systemName: "person.badge.key")
+                                    .foregroundColor(.blue)
+                                    .frame(width: 24)
+                                
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("My Profile")
+                                        .foregroundColor(.primary)
+                                        .font(.body)
+                                    
+                                    if viewModel.isProfileCompleted {
+                                        Text("\(viewModel.displayAge) • \(viewModel.displayGender) • \(viewModel.displayFitnessLevel)")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    } else {
+                                        Text("Complete your profile to get personalized recommendations")
+                                            .font(.caption)
+                                            .foregroundColor(.orange)
+                                    }
+                                }
+                                
+                                Spacer()
+                                
+                                Image(systemName: "chevron.right")
+                                    .foregroundColor(.secondary)
+                                    .font(.caption)
+                            }
+                            .padding()
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                    .background(Color(.systemGray6))
+                    .cornerRadius(12)
+                    .padding(.horizontal)
+                }
+
                 // About Section
                 VStack(alignment: .leading, spacing: 8) {
                     Text("About")
@@ -94,8 +129,13 @@ struct ProfileView: View {
                     showingDeleteAlert = true
                 }) {
                     HStack {
+                        if isDeleting {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                .scaleEffect(0.8)
+                        }
                         Image(systemName: "trash")
-                        Text("Delete Account")
+                        Text(isDeleting ? "Deleting..." : "Delete Account")
                     }
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
@@ -103,6 +143,7 @@ struct ProfileView: View {
                     .background(Color.red)
                     .cornerRadius(12)
                 }
+                .disabled(isDeleting)
                 .padding(.horizontal)
                 .alert("Delete Account", isPresented: $showingDeleteAlert) {
                     Button("Cancel", role: .cancel) { }
@@ -126,8 +167,34 @@ struct ProfileView: View {
             }
             .navigationTitle("Profile")
             .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Edit") {
+                        showingEditProfile = true
+                    }
+                    .font(.body)
+                    .foregroundColor(.blue)
+                }
+            }
+            .fullScreenCover(isPresented: $showingEditProfile) {
+                ProfileSetupView(
+                    isEditingMode: true,
+                    onComplete: {
+                        // Refresh user data after profile completion
+                        viewModel.refreshUserData { _ in }
+                        showingEditProfile = false
+                    },
+                    onCancel: {
+                        showingEditProfile = false
+                    }
+                )
+            }
+            .onAppear {
+                // Refresh user data when view appears
+                viewModel.refreshUserData { _ in }
+            }
         }
-         .tint(.black)
+        .tint(.black)
     }
 }
 
