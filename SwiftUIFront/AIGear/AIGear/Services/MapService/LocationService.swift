@@ -23,6 +23,10 @@ final class LocationService: NSObject, ObservableObject {
     func requestPermission() {
         locationManager.requestWhenInUseAuthorization()
     }
+    
+    func requestLocationOnce() {
+        locationManager.requestLocation()
+    }
 
     func startUpdatingLocation() {
         locationManager.startUpdatingLocation()

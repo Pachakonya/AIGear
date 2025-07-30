@@ -5,6 +5,8 @@ from .knowledge_base import retrieve_gear
 import openai
 import os
 import json
+import requests
+from datetime import datetime, timedelta
 from src.database import get_db
 from src.posts.models import TrailData
 from pydantic import BaseModel
@@ -28,6 +30,9 @@ openai_client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 class PromptRequest(BaseModel):
     prompt: str
+    user_latitude: Optional[float] = None
+    user_longitude: Optional[float] = None
+    location_accuracy: Optional[float] = None
 
 class OrchestratorResponse(BaseModel):
     tool_used: str
@@ -299,6 +304,376 @@ def trail_analysis_tool(analyze_elevation: bool = False, analyze_difficulty: boo
     
     return "\n".join(analysis) if analysis else "Please specify what aspect of the trail you'd like me to analyze."
 
+def hiking_plan_tool(
+    start_time: str = None,
+    include_safety_prep: bool = True,
+    include_duration_estimate: bool = True,
+    user_id: str = None
+) -> str:
+    """Generate comprehensive hiking plan with timing, safety, and preparation recommendations"""
+    db = next(get_db())
+    trail = db.query(TrailData).filter(
+        TrailData.user_id == user_id
+    ).order_by(TrailData.id.desc()).first()
+    
+    # Default to 6:00 AM if no start time specified
+    if not start_time:
+        start_time = "6:00 AM"
+    
+    plan_sections = []
+    
+    # Header
+    plan_sections.append("🗓️ Comprehensive Hiking Plan")
+    plan_sections.append("")
+    
+    if trail:
+        distance_km = (trail.distance_meters or 0) / 1000
+        elevation_m = trail.elevation_gain_meters or 0
+        
+        # Calculate estimated duration using Naismith's rule + modifications
+        # Base time: 1 hour per 5km + 1 hour per 600m elevation gain
+        base_time_hours = (distance_km / 5) + (elevation_m / 600)
+        
+        # Add time for breaks (10 minutes per hour of hiking)
+        break_time_hours = base_time_hours * 0.17
+        total_time_hours = base_time_hours + break_time_hours
+        
+        # Convert to hours and minutes
+        hours = int(total_time_hours)
+        minutes = int((total_time_hours - hours) * 60)
+        
+        if include_duration_estimate:
+            plan_sections.append("⏰ **Timing & Duration**")
+            plan_sections.append(f"• **Recommended start time:** {start_time}")
+            plan_sections.append(f"• **Estimated hiking time:** {hours}h {minutes}min")
+            plan_sections.append(f"• **Distance:** {distance_km:.1f} km")
+            plan_sections.append(f"• **Elevation gain:** {elevation_m:.0f}m")
+            
+            # Calculate return time
+            try:
+                start_dt = datetime.strptime(start_time, "%I:%M %p")
+                end_dt = start_dt + timedelta(hours=total_time_hours)
+                plan_sections.append(f"• **Estimated return:** {end_dt.strftime('%I:%M %p')}")
+            except ValueError:
+                # Fallback for invalid time format
+                plan_sections.append(f"• **Estimated return:** Approximately {hours} hours after {start_time}")
+            
+            plan_sections.append("")
+    
+    if include_safety_prep:
+        plan_sections.append("🛡️ **Essential Safety Preparations**")
+        plan_sections.append("")
+        
+        plan_sections.append("**Before You Leave:**")
+        plan_sections.append("• **Inform trusted contacts** - Share your hiking plan, route, and expected return time with family/friends")
+        plan_sections.append("• **Check weather forecast** - Verify conditions and adjust plans if necessary")
+        plan_sections.append("• **Prepare gear the night before** - Lay out all clothing and equipment to avoid morning rush")
+        plan_sections.append("• **Charge devices** - Ensure phone, GPS, and any electronic gear are fully charged")
+        plan_sections.append("")
+        
+        plan_sections.append("**Gear & Clothing Prep:**")
+        plan_sections.append("• **Layer your clothing** - Base layer, insulating layer, and weather-proof outer shell")
+        plan_sections.append("• **Pack extra clothing** - Bring backup layers in case of weather changes")
+        plan_sections.append("• **Check your boots** - Ensure they're broken in and suitable for the terrain")
+        plan_sections.append("• **Emergency supplies** - First aid kit, whistle, emergency shelter/blanket")
+        plan_sections.append("")
+        
+        plan_sections.append("**Day-of Checklist:**")
+        plan_sections.append(f"• **Early start advantage** - Starting early (like {start_time}) helps avoid crowds, heat, and afternoon weather")
+        plan_sections.append("• **Hydration strategy** - Bring more water than you think you need (0.5L per hour minimum)")
+        plan_sections.append("• **Nutrition planning** - Pack high-energy snacks and a proper lunch if it's a long hike")
+        plan_sections.append("• **Leave No Trace** - Pack out all trash and respect wildlife")
+        plan_sections.append("")
+    
+    plan_sections.append("**Why Start Early?**")
+    plan_sections.append("• **Cooler temperatures** - More comfortable hiking conditions")
+    plan_sections.append("• **Better visibility** - Clearer views before afternoon haze")
+    plan_sections.append("• **Avoid crowds** - Peaceful trail experience")
+    plan_sections.append("• **Weather safety** - Return before potential afternoon storms")
+    plan_sections.append("• **Wildlife activity** - Better chances of spotting morning-active animals")
+    plan_sections.append("")
+    
+    plan_sections.append("⚠️ **Important Safety Reminders:**")
+    plan_sections.append("• Always tell someone your specific hiking plans and expected return time")
+    plan_sections.append("• Turn back if weather conditions deteriorate")
+    plan_sections.append("• Stay on marked trails and follow all posted regulations")
+    plan_sections.append("• Carry emergency communication device for remote areas")
+    
+    return "\n".join(plan_sections)
+
+def gear_rental_tool(
+    location: str = None,
+    latitude: float = None,
+    longitude: float = None,
+    radius: int = 25000,
+    user_id: str = None
+) -> str:
+    """Find hiking gear rental locations using Google Places API"""
+    api_key = os.getenv("GOOGLE_PLACES_API_KEY")
+    if not api_key:
+        return """⚠️ **Google Places API Setup Required**
+
+To enable gear rental search, please:
+1. Visit Google Cloud Console: https://console.cloud.google.com/
+2. Enable Geocoding API and Places API (New)
+3. Create an API key and add it to your .env file"""
+    
+    lat = None
+    lng = None
+    formatted_address = None
+    
+    # Priority 1: Use provided coordinates if available
+    if latitude is not None and longitude is not None:
+        lat = latitude
+        lng = longitude
+        formatted_address = f"Your current location ({lat:.4f}, {lng:.4f})"
+        
+        # Reverse geocode to get readable address
+        try:
+            reverse_geocode_url = "https://maps.googleapis.com/maps/api/geocode/json"
+            reverse_params = {
+                "latlng": f"{lat},{lng}",
+                "key": api_key
+            }
+            reverse_response = requests.get(reverse_geocode_url, params=reverse_params, timeout=10)
+            reverse_data = reverse_response.json()
+            
+            if reverse_data.get("status") == "OK" and reverse_data.get("results"):
+                formatted_address = reverse_data["results"][0]["formatted_address"]
+        except (requests.RequestException, KeyError, ValueError):
+            # If reverse geocoding fails, use coordinates
+            pass
+    
+    # Priority 2: Use location string if no coordinates provided
+    elif location:
+        geocode_url = "https://maps.googleapis.com/maps/api/geocode/json"
+        geocode_params = {
+            "address": location,
+            "key": api_key
+        }
+        
+        try:
+            geocode_response = requests.get(geocode_url, params=geocode_params, timeout=10)
+            geocode_data = geocode_response.json()
+            
+            # Handle API authorization errors
+            if geocode_data.get("status") == "REQUEST_DENIED":
+                error_msg = geocode_data.get("error_message", "API access denied")
+                return f"""❌ **Google Places API Configuration Issue**
+
+{error_msg}
+
+**Quick Fix:**
+1. Go to Google Cloud Console: https://console.cloud.google.com/
+2. Navigate to APIs & Services > Library
+3. Enable: Geocoding API and Places API (New)
+4. Check your API key restrictions"""
+            
+            if geocode_data["status"] != "OK" or not geocode_data["results"]:
+                return f"""❌ Could not find location: {location}
+
+**Try these alternatives:**
+• Use a more specific address (e.g., "Seattle, Washington, USA")
+• Include state/country (e.g., "Denver, Colorado")
+• Try nearby major cities
+
+**Popular hiking areas to search:**
+• Seattle, WA (for Cascades access)
+• Denver, CO (for Rocky Mountains)
+• Salt Lake City, UT (for Utah's national parks)
+• Asheville, NC (for Appalachian trails)"""
+            
+            # Get coordinates from geocoding result
+            location_data = geocode_data["results"][0]
+            lat = location_data["geometry"]["location"]["lat"]
+            lng = location_data["geometry"]["location"]["lng"]
+            formatted_address = location_data["formatted_address"]
+            
+        except (requests.RequestException, KeyError, ValueError) as e:
+            return f"""❌ **Connection Error**
+
+Unable to connect to Google Places API: {str(e)}
+
+**Manual alternatives for finding gear rentals:**
+• Search "outdoor gear rental near [your location]" on Google Maps
+• Check REI, Patagonia, or local outdoor stores
+• Visit camping/hiking forums for local recommendations
+• Ask at visitor centers near trailheads"""
+    
+    # Priority 3: No location provided - ask user
+    else:
+        return """📍 **Location needed for gear rental search**
+
+I can help you find nearby gear rental shops! Please either:
+• Share your current location 📍
+• Tell me a city or area (e.g., "Seattle, WA")
+• Or specify where you're planning to hike
+
+**Popular hiking areas:**
+• Seattle, WA (for Cascades access)
+• Denver, CO (for Rocky Mountains)  
+• Salt Lake City, UT (for Utah's national parks)
+• Asheville, NC (for Appalachian trails)"""
+    
+    # Search for outdoor gear rental places
+    places_url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
+    
+    # Search terms for hiking/outdoor gear rental - more specific to avoid unrelated businesses
+    search_queries = [
+        "outdoor equipment rental hiking camping",
+        "sporting goods rental outdoor gear", 
+        "adventure gear rental hiking",
+        "outdoor outfitters rental",
+        "camping hiking equipment rental",
+        "REI outdoor gear rental"  # Include known outdoor brands
+    ]
+    
+    all_places = []
+    
+    for query in search_queries:
+        params = {
+            "location": f"{lat},{lng}",
+            "radius": radius,
+            "keyword": query,
+            "type": "store",
+            "key": api_key
+        }
+        
+        try:
+            response = requests.get(places_url, params=params, timeout=10)
+            data = response.json()
+            
+            if data["status"] == "OK":
+                all_places.extend(data["results"])
+                
+        except (requests.RequestException, KeyError, ValueError):
+            continue
+    
+    # Filter out businesses that are clearly not outdoor gear related
+    outdoor_keywords = [
+        "outdoor", "hiking", "camping", "adventure", "mountain", "trek", 
+        "climbing", "backpack", "gear", "equipment", "outfitter", "sporting goods",
+        "rei", "patagonia", "north face", "sports", "expedition", "alpine", "trail"
+    ]
+    
+    exclude_keywords = [
+        "car", "auto", "vehicle", "truck", "motorcycle", "scooter", "bike rental",
+        "apartment", "house", "property", "real estate", "gravity", "finance"
+    ]
+    
+    filtered_places = []
+    for place in all_places:
+        name = place.get("name", "").lower()
+        types = place.get("types", [])
+        
+        # Skip if it contains excluded keywords
+        if any(keyword in name for keyword in exclude_keywords):
+            continue
+            
+        # Skip if it's clearly not outdoor-related establishment type
+        if "car_rental" in types or "gas_station" in types or "real_estate_agency" in types:
+            continue
+            
+        # Only include if it has outdoor-related keywords OR is a sporting goods store
+        has_outdoor_keywords = any(keyword in name for keyword in outdoor_keywords)
+        is_sporting_goods = "sporting_goods_store" in types
+        is_general_store = "store" in types or "establishment" in types
+        
+        if has_outdoor_keywords or is_sporting_goods or (is_general_store and "rental" in name):
+            filtered_places.append(place)
+    
+    # Remove duplicates based on place_id
+    unique_places = {}
+    for place in filtered_places:
+        place_id = place.get("place_id")
+        if place_id and place_id not in unique_places:
+            unique_places[place_id] = place
+    
+    places = list(unique_places.values())
+    
+    if not places:
+        return f"🔍 No hiking gear rental shops found within {radius/1000:.0f}km of {formatted_address}. Try expanding your search area or checking nearby cities."
+    
+    # Sort by number of reviews (user_ratings_total) and limit to top 3 results
+    places = sorted(places, key=lambda x: x.get("user_ratings_total", 0), reverse=True)[:3]
+    
+    # Format the response
+    result_sections = []
+    result_sections.append("🏪 **Hiking Gear Rental Locations**")
+    result_sections.append(f"📍 Search area: {formatted_address}")
+    result_sections.append("")
+    
+    for i, place in enumerate(places, 1):
+        name = place.get("name", "Unknown")
+        rating = place.get("rating", "No rating")
+        user_ratings_total = place.get("user_ratings_total", 0)
+        vicinity = place.get("vicinity", "Address not available")
+        
+        # Get business status
+        business_status = place.get("business_status", "")
+        status_indicator = "🟢" if business_status == "OPERATIONAL" else "🟡" if business_status else ""
+        
+        # Price level indicator
+        price_level = place.get("price_level")
+        price_indicator = ""
+        if price_level is not None:
+            price_indicator = " • " + "💰" * price_level if price_level > 0 else " • Budget-friendly"
+        
+        result_sections.append(f"**{i}. {name}** {status_indicator}")
+        result_sections.append(f"• **Rating:** ⭐ {rating}/5 ({user_ratings_total} reviews)")
+        result_sections.append(f"• **Address:** {vicinity}{price_indicator}")
+        
+        # Add opening hours if available
+        if place.get("opening_hours"):
+            is_open = place["opening_hours"].get("open_now")
+            if is_open is not None:
+                status = "Open now" if is_open else "Closed now"
+                result_sections.append(f"• **Status:** {status}")
+        
+        # Add website/phone if available
+        place_id = place.get("place_id")
+        if place_id:
+            # Get additional details for this place (website, phone, etc.)
+            try:
+                details_url = "https://maps.googleapis.com/maps/api/place/details/json"
+                details_params = {
+                    "place_id": place_id,
+                    "fields": "website,formatted_phone_number,url",
+                    "key": api_key
+                }
+                details_response = requests.get(details_url, params=details_params, timeout=10)
+                details_data = details_response.json()
+                
+                if details_data.get("status") == "OK" and details_data.get("result"):
+                    details = details_data["result"]
+                    
+                    # Add website if available
+                    if details.get("website"):
+                        result_sections.append(f"• **Website:** {details['website']}")
+                    
+                    # Add phone if available
+                    if details.get("formatted_phone_number"):
+                        result_sections.append(f"• **Phone:** {details['formatted_phone_number']}")
+                    
+                    # Add Google Maps link
+                    if details.get("url"):
+                        result_sections.append(f"• **Google Maps:** {details['url']}")
+                        
+            except (requests.RequestException, KeyError, ValueError):
+                # If details request fails, continue without additional info
+                pass
+        
+        result_sections.append("")
+    
+    result_sections.append("💡 **Tips for Gear Rental:**")
+    result_sections.append("• Call ahead to check availability of specific items")
+    result_sections.append("• Ask about multi-day rental discounts")
+    result_sections.append("• Bring valid ID and credit card for deposits")
+    result_sections.append("• Inspect gear condition before renting")
+    result_sections.append("• Ask about return policies and late fees")
+    
+    return "\n".join(result_sections)
+
 def chat_tool(question: str) -> str:
     """General hiking and travel chat"""
     # Use GPT for general hiking/travel questions
@@ -517,8 +892,62 @@ TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "hiking_plan_tool",
+            "description": "Create comprehensive hiking plans with timing, duration estimates, safety preparations, and gear recommendations",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "start_time": {
+                        "type": "string",
+                        "description": "Preferred start time for the hike (e.g., '6:00 AM', '7:30 AM')"
+                    },
+                    "include_safety_prep": {
+                        "type": "boolean",
+                        "description": "Whether to include safety preparation recommendations"
+                    },
+                    "include_duration_estimate": {
+                        "type": "boolean",
+                        "description": "Whether to include duration and timing estimates"
+                    }
+                },
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "gear_rental_tool",
+            "description": "Find hiking gear rental shops, equipment rental stores, and places to rent/hire outdoor gear near a location. Use for ANY request about renting, hiring, or finding rental places for hiking/camping equipment.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "location": {
+                        "type": "string",
+                        "description": "Location to search near (e.g., 'Seattle, WA', 'Denver, CO', 'near Yosemite')"
+                    },
+                    "latitude": {
+                        "type": "number",
+                        "description": "User's current latitude coordinate for location-based search"
+                    },
+                    "longitude": {
+                        "type": "number", 
+                        "description": "User's current longitude coordinate for location-based search"
+                    },
+                    "radius": {
+                        "type": "integer",
+                        "description": "Search radius in meters (default: 25000 = 25km)"
+                    }
+                },
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "chat_tool",
-            "description": "General hiking and travel Q&A for questions not covered by other tools",
+            "description": "General hiking and travel Q&A for questions not covered by other tools. DO NOT use for gear rental requests - use gear_rental_tool instead.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -539,6 +968,8 @@ TOOL_FUNCTIONS = {
     "wardrobe_inventory_tool": wardrobe_inventory_tool,
     "trail_analysis_tool": trail_analysis_tool,
     "weather_conditions_tool": weather_conditions_tool,
+    "hiking_plan_tool": hiking_plan_tool,
+    "gear_rental_tool": gear_rental_tool,
     "chat_tool": chat_tool
 }
 
@@ -718,12 +1149,44 @@ Available tools:
 - wardrobe_inventory_tool: To check/manage items the user owns
 - trail_analysis_tool: To analyze trail difficulty and elevation
 - weather_conditions_tool: ONLY when user specifically asks about weather/conditions
+- hiking_plan_tool: For comprehensive hiking plans with timing, safety prep, and duration estimates
+- gear_rental_tool: For finding hiking gear rental locations near user's location or specified area
 - chat_tool: For general hiking/travel questions
+
+CRITICAL GEAR RENTAL DETECTION - MANDATORY RULES:
+1. If user mentions "rental", "rent", "renting", "hire" + gear/equipment → MUST use gear_rental_tool
+2. If user asks for "places" + gear/equipment → MUST use gear_rental_tool  
+3. If user provides location after gear rental request → MUST use gear_rental_tool
+4. ABSOLUTELY NEVER use chat_tool for ANY gear rental request
+5. When in doubt about gear rental vs general info → ALWAYS choose gear_rental_tool
+
+MANDATORY EXAMPLES - THESE MUST USE gear_rental_tool:
+- "gear rental places" → gear_rental_tool (NOT chat_tool)
+- "give me gear rental places in almaty" → gear_rental_tool (NOT chat_tool)
+- "rent hiking equipment" → gear_rental_tool (NOT chat_tool)
+- "where can I rent gear" → gear_rental_tool (NOT chat_tool)
+- "equipment rental shops" → gear_rental_tool (NOT chat_tool)
+
+FORBIDDEN: Using chat_tool for anything related to renting, hiring, or finding rental places
 
 IMPORTANT: Only use weather_conditions_tool when the user explicitly asks about weather, conditions, or forecast. Do NOT call it automatically for gear suggestions unless weather is specifically mentioned.
 {trail_context}
 When the user asks for gear recommendations without specifying conditions, use the trail data context to inform your parameters."""
 
+    # Check if this is definitely a gear rental request and force the tool
+    prompt_lower = request.prompt.lower()
+    gear_rental_keywords = ["rental", "rent", "renting", "hire"]
+    gear_keywords = ["gear", "equipment", "hiking", "camping", "outdoor"]
+    
+    is_gear_rental_request = any(rental_kw in prompt_lower for rental_kw in gear_rental_keywords) and \
+                           any(gear_kw in prompt_lower for gear_kw in gear_keywords)
+    
+    if is_gear_rental_request:
+        # Force gear_rental_tool for obvious rental requests
+        tool_choice = {"type": "function", "function": {"name": "gear_rental_tool"}}
+    else:
+        tool_choice = "required"  # Let AI choose but force a tool
+    
     # Get tool selection from OpenAI
     response = openai_client.chat.completions.create(
         model="gpt-4o",
@@ -732,7 +1195,7 @@ When the user asks for gear recommendations without specifying conditions, use t
             {"role": "user", "content": request.prompt}
         ],
         tools=TOOLS,
-        tool_choice="auto"
+        tool_choice=tool_choice
     )
     
     message = response.choices[0].message
@@ -744,8 +1207,15 @@ When the user asks for gear recommendations without specifying conditions, use t
         tool_args = json.loads(tool_call.function.arguments)
         
         # Add user_id to args for tools that need it
-        if tool_name in ["gear_recommendation_tool", "trail_analysis_tool", "weather_conditions_tool"]:
+        if tool_name in ["gear_recommendation_tool", "trail_analysis_tool", "weather_conditions_tool", "hiking_plan_tool", "gear_rental_tool"]:
             tool_args["user_id"] = current_user.id
+            
+        # Add location data to gear_rental_tool if available and not already specified
+        if tool_name == "gear_rental_tool" and request.user_latitude is not None and request.user_longitude is not None:
+            # Only add coordinates if not already specified in the tool args
+            if "latitude" not in tool_args and "longitude" not in tool_args:
+                tool_args["latitude"] = request.user_latitude
+                tool_args["longitude"] = request.user_longitude
         
         # Execute the selected tool
         tool_function = TOOL_FUNCTIONS.get(tool_name)

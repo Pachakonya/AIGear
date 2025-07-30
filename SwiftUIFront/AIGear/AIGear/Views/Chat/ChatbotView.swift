@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreLocation
 
 struct ChatMessage: Identifiable {
     let id = UUID()
@@ -33,6 +34,9 @@ struct ChatbotView: View {
     // Track if user customized trip specs & if reminder already shown
     @State private var tripCustomized: Bool = false
     @State private var tripReminderShown: Bool = false
+    
+    // Location services
+    @StateObject private var locationService = LocationService()
     
     // @StateObject private var webSocketService = WebSocketService.shared
 
@@ -134,6 +138,16 @@ struct ChatbotView: View {
         .onTapGesture {
             isInputFocused = false
         }
+        .onAppear {
+            // Request location permission and start location updates when chat view appears
+            locationService.requestPermission()
+            
+            // Start location updates if already authorized
+            if locationService.authorizationStatus == .authorizedWhenInUse || 
+               locationService.authorizationStatus == .authorizedAlways {
+                locationService.startUpdatingLocation()
+            }
+        }
     }
     
     func sendMessage() {
@@ -154,7 +168,7 @@ struct ChatbotView: View {
         // If user hasn't customized trip specs yet, show one-time reminder
         if !tripCustomized && !tripReminderShown {
             chatHistory.append(ChatMessage(
-                text: "ℹ️ Tip: For more tailored gear suggestions, tap the slider icon (top-right) to fill in trip details like days, season, and if you'll be overnighting.",
+                text: "ℹ️ Tip: For more tailored gear suggestions, tap the slider icon to fill in trip details like days, season, and if you'll be overnighting.",
                 isUser: false,
                 toolUsed: "suggestion"
             ))
@@ -166,7 +180,101 @@ struct ChatbotView: View {
     }
     
     func callOrchestrator(for prompt: String) {
-        NetworkService.shared.callOrchestrator(prompt: prompt) { result in
+        // Check if this might be a location-based request (more specific keywords)
+        let lowercasedPrompt = prompt.lowercased()
+        let locationKeywords = ["nearby", "near me", "close to me", "around here", "in my area"]
+        let rentalKeywords = ["rental", "rent gear", "rent equipment"]
+        
+        let isLocationBasedRequest = locationKeywords.contains { lowercasedPrompt.contains($0) } ||
+                                   rentalKeywords.contains { lowercasedPrompt.contains($0) }
+        
+        // If it's a location-based request, ensure location services are active
+        if isLocationBasedRequest {
+            // Start location updates if not already running
+            if locationService.authorizationStatus == .authorizedWhenInUse || 
+               locationService.authorizationStatus == .authorizedAlways {
+                locationService.startUpdatingLocation()
+                // Also request a one-time location update for immediate use
+                locationService.requestLocationOnce()
+            } else {
+                // Request permission if not granted
+                locationService.requestPermission()
+            }
+        }
+        
+        var userLocation: CLLocation? = nil
+        
+        // For location-based requests, try to get current location
+        if isLocationBasedRequest {
+            userLocation = locationService.currentLocation
+            
+            // Debug: Print location status
+            print("🔍 Location Debug:")
+            print("   Authorization: \(locationService.authorizationStatus?.rawValue ?? -1)")
+            print("   Current Location: \(userLocation?.coordinate.latitude ?? 0), \(userLocation?.coordinate.longitude ?? 0)")
+            print("   Location Available: \(userLocation != nil)")
+            
+            // If location is not available but request is location-based, show helpful message
+            if userLocation == nil {
+                // Check authorization status
+                if locationService.authorizationStatus == .denied || locationService.authorizationStatus == .restricted {
+                    chatHistory.append(ChatMessage(
+                        text: "📍 Location access is needed for nearby searches. Please enable location permissions in Settings > Privacy & Security > Location Services > AI Gear.",
+                        isUser: false,
+                        toolUsed: "suggestion"
+                    ))
+                    isLoading = false
+                    return
+                } else if locationService.authorizationStatus == .notDetermined {
+                    chatHistory.append(ChatMessage(
+                        text: "📍 I need location permission to find nearby gear rental places. Please allow location access when prompted.",
+                        isUser: false,
+                        toolUsed: "suggestion"
+                    ))
+                    isLoading = false
+                    return
+                } else {
+                    // Location is authorized but not available yet - give it a moment
+                    chatHistory.append(ChatMessage(
+                        text: "📍 Getting your location... This may take a moment.",
+                        isUser: false,
+                        toolUsed: "suggestion"
+                    ))
+                    
+                    // Try to get location with a slight delay
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                        if let delayedLocation = locationService.currentLocation {
+                            print("🔍 Delayed location found: \(delayedLocation)")
+                            NetworkService.shared.callOrchestrator(prompt: prompt, userLocation: delayedLocation) { result in
+                                DispatchQueue.main.async {
+                                    self.isLoading = false
+                                    switch result {
+                                    case .success(let response):
+                                        self.structureOrchestratorResponse(response)
+                                    case .failure(let error):
+                                        self.chatHistory.append(ChatMessage(
+                                            text: "Error: \(error.localizedDescription)",
+                                            isUser: false,
+                                            toolUsed: "error"
+                                        ))
+                                    }
+                                }
+                            }
+                        } else {
+                            self.chatHistory.append(ChatMessage(
+                                text: "📍 Unable to get your current location. Please specify a city or area (e.g., 'Seattle, WA') for gear rental search.",
+                                isUser: false,
+                                toolUsed: "suggestion"
+                            ))
+                            self.isLoading = false
+                        }
+                    }
+                    return
+                }
+            }
+        }
+        
+        NetworkService.shared.callOrchestrator(prompt: prompt, userLocation: userLocation) { result in
             DispatchQueue.main.async {
                 isLoading = false
                 switch result {
@@ -220,6 +328,20 @@ struct ChatbotView: View {
                 isUser: false,
                 toolUsed: "checklist_action",
                 payload: responseText
+            ))
+        } else if response.tool_used == "hiking_plan_tool" {
+            // Add hiking plan as one message
+            chatHistory.append(ChatMessage(
+                text: responseText,
+                isUser: false,
+                toolUsed: response.tool_used
+            ))
+        } else if response.tool_used == "gear_rental_tool" {
+            // Add gear rental locations as one message
+            chatHistory.append(ChatMessage(
+                text: responseText,
+                isUser: false,
+                toolUsed: response.tool_used
             ))
         } else if response.tool_used == "trail_analysis_tool" {
             // Add trail analysis as one message
@@ -351,6 +473,10 @@ struct ChatBubble: View {
             return "tshirt"
         case "trail_analysis_tool":
             return "chart.line.uptrend.xyaxis"
+        case "hiking_plan_tool":
+            return "calendar.badge.clock"
+        case "gear_rental_tool":
+            return "storefront"
         case "chat_tool":
             return "bubble.left.and.bubble.right"
         case "error":
@@ -368,6 +494,10 @@ struct ChatBubble: View {
             return .purple
         case "trail_analysis_tool":
             return .orange
+        case "hiking_plan_tool":
+            return .indigo
+        case "gear_rental_tool":
+            return .brown
         case "chat_tool":
             return .blue
         case "error":
@@ -389,6 +519,10 @@ struct ChatBubble: View {
             return "Wardrobe Check"
         case "trail_analysis_tool":
             return "Trail Analysis"
+        case "hiking_plan_tool":
+            return "Hiking Plan"
+        case "gear_rental_tool":
+            return "Gear Rentals"
         case "chat_tool":
             return "General Info"
         case "error":
@@ -406,7 +540,7 @@ struct FormattedTextView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            ForEach(parseText(), id: \.self) { section in
+            ForEach(Array(parseText().enumerated()), id: \.offset) { index, section in
                 if section.contains("**") && (section.hasSuffix(":") || section.hasSuffix(":**")) {
                     // Bold headers (like **Clothing:** or **Equipment:**)
                     let cleanedText = section.replacingOccurrences(of: "**", with: "")

@@ -103,7 +103,8 @@ struct AnyCodable: Codable {
 class NetworkService {
     static let shared = NetworkService()
 //    private let baseURL = "https://api.aigear.tech"
-    private let baseURL = "http://172.20.10.8:8000" // Hotspot IP
+//    private let baseURL = "http://172.20.10.8:8000" // Hotspot IP
+    private let baseURL = "http://192.168.100.84:8000"
 
     private func addAuthHeader(to request: inout URLRequest) {
         if let token = AuthService.shared.getAuthToken() {
@@ -321,7 +322,7 @@ class NetworkService {
         }.resume()
     }
 
-    func callOrchestrator(prompt: String, completion: @escaping (Result<OrchestratorResponse, Error>) -> Void) {
+    func callOrchestrator(prompt: String, userLocation: CLLocation? = nil, completion: @escaping (Result<OrchestratorResponse, Error>) -> Void) {
         guard let url = URL(string: "\(baseURL)/aiengine/orchestrate") else {
             return completion(.failure(NSError(domain: "Invalid URL", code: 400)))
         }
@@ -330,7 +331,16 @@ class NetworkService {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.timeoutInterval = 30.0 // Add 30 second timeout
         addAuthHeader(to: &request)
-        let body = ["prompt": prompt]
+        
+        var body: [String: Any] = ["prompt": prompt]
+        
+        // Add location data if available
+        if let location = userLocation {
+            body["user_latitude"] = location.coordinate.latitude
+            body["user_longitude"] = location.coordinate.longitude
+            body["location_accuracy"] = location.horizontalAccuracy
+        }
+        
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         URLSession.shared.dataTask(with: request) { data, response, error in
             if let error = error {

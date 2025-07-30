@@ -56,7 +56,8 @@ class AuthService: ObservableObject {
     @Published var isLoading = false
     
 //    private let baseURL = "https://api.aigear.tech"
-    private let baseURL = "http://172.20.10.8:8000" // Hotspot IP
+//    private let baseURL = "http://172.20.10.8:8000" // Hotspot IP
+    private let baseURL = "http://192.168.100.84:8000"
     private let tokenKey = "auth_token"
     private let userKey = "user_data"
     
