@@ -25,6 +25,9 @@ struct ChatbotView: View {
     @State private var userInput: String = ""
     @State private var isLoading: Bool = false
     @FocusState private var isInputFocused: Bool
+    @State private var shouldAutoScroll: Bool = true
+    @State private var showScrollToBottomButton: Bool = false
+    @State private var lastMessageWasFromUser: Bool = false
     
     // Trip-spec states
     @State private var showTripSpecSheet: Bool = false
@@ -58,27 +61,72 @@ struct ChatbotView: View {
             VStack(spacing: 0) {
                 // Chat history
                 ScrollViewReader { proxy in
-                    ScrollView {
-                        VStack(spacing: 12) {
-                            ForEach(chatHistory) { message in
-                                ChatBubble(
-                                    text: message.text,
-                                    isUser: message.isUser,
-                                    toolUsed: message.toolUsed,
-                                    payload: message.payload,
-                                    selectedBusiness: $selectedBusiness,
-                                    showGearRentalMap: $showGearRentalMap,
-                                    selectedTab: $selectedTab
-                                )
-                                .id(message.id)
+                    ZStack(alignment: .bottomTrailing) {
+                        ScrollView {
+                            VStack(spacing: 12) {
+                                ForEach(chatHistory) { message in
+                                    ChatBubble(
+                                        text: message.text,
+                                        isUser: message.isUser,
+                                        toolUsed: message.toolUsed,
+                                        payload: message.payload,
+                                        selectedBusiness: $selectedBusiness,
+                                        showGearRentalMap: $showGearRentalMap,
+                                        selectedTab: $selectedTab
+                                    )
+                                    .id(message.id)
+                                }
+                            }
+                            .padding(.horizontal)
+                            .padding(.vertical, 8)
+                        }
+                        .onChange(of: chatHistory.count) { _ in
+                            // Always scroll to show user's own messages
+                            if lastMessageWasFromUser {
+                                withAnimation {
+                                    proxy.scrollTo(chatHistory.last?.id, anchor: .bottom)
+                                }
+                                lastMessageWasFromUser = false
+                            } else if shouldAutoScroll {
+                                // Only auto-scroll for AI messages if user hasn't manually scrolled up
+                                withAnimation {
+                                    proxy.scrollTo(chatHistory.last?.id, anchor: .bottom)
+                                }
+                            } else {
+                                // AI message arrived - create subtle upward shift to indicate new content
+                                if chatHistory.count >= 3 {
+                                    // Find a message a few positions back to create a gentle shift
+                                    let shiftTargetIndex = max(0, chatHistory.count - 3)
+                                    withAnimation(.easeInOut(duration: 0.4)) {
+                                        proxy.scrollTo(chatHistory[shiftTargetIndex].id, anchor: .center)
+                                    }
+                                }
+                                // Show scroll to bottom button when AI messages arrive
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                    showScrollToBottomButton = true
+                                }
                             }
                         }
-                        .padding(.horizontal)
-                        .padding(.vertical, 8)
-                    }
-                    .onChange(of: chatHistory.count) { _ in   
-                        withAnimation {
-                            proxy.scrollTo(chatHistory.last?.id, anchor: .bottom)
+                        
+                        // Scroll to bottom button
+                        if showScrollToBottomButton {
+                            Button(action: {
+                                withAnimation {
+                                    proxy.scrollTo(chatHistory.last?.id, anchor: .bottom)
+                                }
+                                shouldAutoScroll = true
+                                showScrollToBottomButton = false
+                            }) {
+                                Image(systemName: "arrow.down.circle.fill")
+                                    .font(.system(size: 36))
+                                    .foregroundColor(.white)
+                                    .background(Color.black.opacity(0.7))
+                                    .clipShape(Circle())
+                                    .shadow(radius: 4)
+                            }
+                            .padding(.trailing, 16)
+                            .padding(.bottom, 16)
+                            .transition(.scale.combined(with: .opacity))
                         }
                     }
                 }
@@ -166,6 +214,12 @@ struct ChatbotView: View {
         
         // Prevent sending if already loading
         guard !isLoading else { return }
+        
+        // Mark that the next message will be from user (so we can scroll to show it)
+        lastMessageWasFromUser = true
+        
+        // Disable auto-scroll for subsequent AI responses
+        shouldAutoScroll = false
         
         // Add user message
         chatHistory.append(ChatMessage(text: trimmedInput, isUser: true))
