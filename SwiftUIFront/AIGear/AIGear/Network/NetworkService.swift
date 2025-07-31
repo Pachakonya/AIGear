@@ -103,8 +103,8 @@ struct AnyCodable: Codable {
 class NetworkService {
     static let shared = NetworkService()
 //    private let baseURL = "https://api.aigear.tech"
-//    private let baseURL = "http://172.20.10.8:8000" // Hotspot IP
-    private let baseURL = "http://192.168.100.84:8000"
+    private let baseURL = "http://172.20.10.8:8000" // Hotspot IP
+//    private let baseURL = "http://192.168.100.84:8000"
 
     private func addAuthHeader(to request: inout URLRequest) {
         if let token = AuthService.shared.getAuthToken() {

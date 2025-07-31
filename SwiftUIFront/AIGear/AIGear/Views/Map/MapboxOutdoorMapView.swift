@@ -62,6 +62,11 @@ struct MapboxOutdoorMapView: UIViewRepresentable {
         @objc private func showPinAtLocationNotification(_ notification: Notification) {
             guard let coordinate = notification.object as? CLLocationCoordinate2D else { return }
             showPinAtLocation(coordinate)
+            
+            // Show route confirmation dialog for gear rental location (don't save trail data)
+            DispatchQueue.main.async {
+                self.viewModel.showRouteConfirmationDialog(for: coordinate, isGearRental: true)
+            }
         }
 
         @objc func mapTapped(_ sender: UITapGestureRecognizer) {
@@ -79,9 +84,9 @@ struct MapboxOutdoorMapView: UIViewRepresentable {
             // Show pin at tapped location
             showPinAtLocation(tappedCoordinate)
             
-            // Show route confirmation dialog
+            // Show route confirmation dialog for hiking route (save trail data)
             DispatchQueue.main.async {
-                self.viewModel.showRouteConfirmationDialog(for: tappedCoordinate)
+                self.viewModel.showRouteConfirmationDialog(for: tappedCoordinate, isGearRental: false)
             }
         }
         
@@ -91,15 +96,19 @@ struct MapboxOutdoorMapView: UIViewRepresentable {
             
             // Create a new pin using a circle annotation
             var circleAnnotation = CircleAnnotation(centerCoordinate: coordinate)
-            circleAnnotation.circleRadius = 5
-            circleAnnotation.circleColor = StyleColor(UIColor.systemBlue)
+            circleAnnotation.circleRadius = 8  // Slightly larger for better visibility
+            circleAnnotation.circleColor = StyleColor(UIColor.systemRed)  // Red for gear rental locations
             circleAnnotation.circleOpacity = 1.0
             circleAnnotation.circleStrokeColor = StyleColor(UIColor.white)
-            circleAnnotation.circleStrokeWidth = 2
+            circleAnnotation.circleStrokeWidth = 3
             circleAnnotation.circleStrokeOpacity = 1.0
             
             circleManager?.annotations = [circleAnnotation]
             
+            // Center the map on the pin location with a slight delay to ensure proper rendering
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                self.centerMap(on: coordinate)
+            }
         }
         
         private func buildRoute(to destination: CLLocationCoordinate2D, on mapView: MapView) {
@@ -114,7 +123,7 @@ struct MapboxOutdoorMapView: UIViewRepresentable {
                 self.viewModel.hasBuiltRoute = false
             }
 
-            RouteService().fetchRoute(from: origin, to: destination) { route, conditions in
+            RouteService().fetchRoute(from: origin, to: destination, saveTrailData: !viewModel.isGearRentalRoute) { route, conditions in
                 guard let route = route else { 
                     // Reset loading state if route fetch fails
                     DispatchQueue.main.async {
@@ -171,7 +180,8 @@ struct MapboxOutdoorMapView: UIViewRepresentable {
         }
         
         func centerMap(on coordinate: CLLocationCoordinate2D) {
-            mapView?.camera.ease(to: CameraOptions(center: coordinate, zoom: 13), duration: 1.5)
+            // Use higher zoom level for better visibility of gear rental locations
+            mapView?.camera.ease(to: CameraOptions(center: coordinate, zoom: 15), duration: 1.5)
         }
     }
 

@@ -8,6 +8,7 @@ final class RouteService {
     func fetchRoute(
         from origin: CLLocationCoordinate2D,
         to destination: CLLocationCoordinate2D,
+        saveTrailData: Bool = true,
         completion: @escaping (Route?, [TrailCondition]) -> Void
     ) {
         let originWaypoint = Waypoint(coordinate: origin, name: "Start")
@@ -30,24 +31,28 @@ final class RouteService {
 
                 OverpassService.shared.fetchTrailCondition(around: coordinates) { conditions in
 
-                    // 🚀 Upload starts here after fetching route + trail condition
-                    let distance = route.distance
-                    let surfaces = conditions.compactMap { $0.surface }.uniqued()
+                    if saveTrailData {
+                        // 🚀 Upload trail data only for hiking routes, not gear rental routes
+                        let distance = route.distance
+                        let surfaces = conditions.compactMap { $0.surface }.uniqued()
 
-                    ElevationService.shared.calculateElevationGain(for: coordinates) { elevationGain in
-                        NetworkService.shared.uploadTrailData(
-                            coordinates: coordinates,
-                            distance: distance,
-                            trailConditions: surfaces,
-                            elevationGain: elevationGain
-                        ) { result in
-                            switch result {
-                            case .success(let message):
-                                print(message)
-                            case .failure(let error):
-                                print("❌ Upload failed: \(error)")
+                        ElevationService.shared.calculateElevationGain(for: coordinates) { elevationGain in
+                            NetworkService.shared.uploadTrailData(
+                                coordinates: coordinates,
+                                distance: distance,
+                                trailConditions: surfaces,
+                                elevationGain: elevationGain
+                            ) { result in
+                                switch result {
+                                case .success(let message):
+                                    print(message)
+                                case .failure(let error):
+                                    print("❌ Upload failed: \(error)")
+                                }
                             }
                         }
+                    } else {
+                        print("🏪 Skipping trail data upload for gear rental route")
                     }
 
                     // ✅ Return the route and conditions to the caller

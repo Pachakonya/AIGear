@@ -351,8 +351,8 @@ struct MapContainerView: View {
                 // Show pin at search result location (same as tap behavior)
                 NotificationCenter.default.post(name: .showPinAtLocation, object: destination)
                 
-                // Show route confirmation dialog (same as tap behavior)
-                self.viewModel.showRouteConfirmationDialog(for: destination)
+                // Show route confirmation dialog for hiking route (same as tap behavior)
+                self.viewModel.showRouteConfirmationDialog(for: destination, isGearRental: false)
                 
                 // Center map on the found location
                 NotificationCenter.default.post(name: .centerMapExternally, object: destination)

@@ -17,6 +17,8 @@ struct ChatMessage: Identifiable {
 }
 
 struct ChatbotView: View {
+    @Binding var selectedTab: Int
+    
     @State private var chatHistory: [ChatMessage] = [
         ChatMessage(text: "Hi! I'm AI Gear Assistant. Ask me for gear suggestions, check your wardrobe, or just chat about hiking.", isUser: false)
     ]
@@ -37,6 +39,10 @@ struct ChatbotView: View {
     
     // Location services
     @StateObject private var locationService = LocationService()
+    
+    // Map view state
+    @State private var showGearRentalMap = false
+    @State private var selectedBusiness: GearRentalBusiness?
     
     // @StateObject private var webSocketService = WebSocketService.shared
 
@@ -59,7 +65,10 @@ struct ChatbotView: View {
                                     text: message.text,
                                     isUser: message.isUser,
                                     toolUsed: message.toolUsed,
-                                    payload: message.payload
+                                    payload: message.payload,
+                                    selectedBusiness: $selectedBusiness,
+                                    showGearRentalMap: $showGearRentalMap,
+                                    selectedTab: $selectedTab
                                 )
                                 .id(message.id)
                             }
@@ -148,6 +157,7 @@ struct ChatbotView: View {
                 locationService.startUpdatingLocation()
             }
         }
+
     }
     
     func sendMessage() {
@@ -366,6 +376,9 @@ struct ChatBubble: View {
     let isUser: Bool
     let toolUsed: String?
     let payload: String?
+    @Binding var selectedBusiness: GearRentalBusiness?
+    @Binding var showGearRentalMap: Bool
+    @Binding var selectedTab: Int
     
     @ObservedObject private var gearVM = GearViewModel.shared
     
@@ -412,7 +425,13 @@ struct ChatBubble: View {
                 
                 // Format text with markdown support
                 if text.contains("**") || text.contains("•") {
-                    FormattedTextView(text: text, isUser: isUser)
+                    FormattedTextView(
+                        text: text, 
+                        isUser: isUser,
+                        selectedBusiness: $selectedBusiness,
+                        showGearRentalMap: $showGearRentalMap,
+                        selectedTab: $selectedTab
+                    )
                         .padding(.horizontal, 16)
                         .padding(.vertical, 12)
                         .background(
@@ -537,59 +556,354 @@ struct ChatBubble: View {
 struct FormattedTextView: View {
     let text: String
     let isUser: Bool
+    @Binding var selectedBusiness: GearRentalBusiness?
+    @Binding var showGearRentalMap: Bool
+    @Binding var selectedTab: Int
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 12) {
             ForEach(Array(parseText().enumerated()), id: \.offset) { index, section in
-                if section.contains("**") && (section.hasSuffix(":") || section.hasSuffix(":**")) {
-                    // Bold headers (like **Clothing:** or **Equipment:**)
-                    let cleanedText = section.replacingOccurrences(of: "**", with: "")
-                    HStack(alignment: .center, spacing: 8) {
-                        // Extract emoji if present
-                        let parts = cleanedText.components(separatedBy: " ")
-                        if parts.count > 1 && parts[0].count <= 2 {
-                            // First part might be emoji
-                            Text(parts[0])
-                                .font(.system(size: 18))
-                            Text(parts.dropFirst().joined(separator: " "))
-                                .font(.custom("DMSans-Bold", size: 16))
-                                .foregroundColor(isUser ? .white : .black)
-                        } else {
-                            Text(cleanedText)
-                                .font(.custom("DMSans-Bold", size: 16))
-                                .foregroundColor(isUser ? .white : .black)
-                        }
+                formatSection(section)
+            }
+        }
+    }
+    
+    @ViewBuilder
+    func formatSection(_ section: String) -> some View {
+        if section.contains("🏪") && section.contains("**") {
+            // Main title - clean and professional
+            let cleanTitle = section.replacingOccurrences(of: "**", with: "").replacingOccurrences(of: "🏪 ", with: "")
+            Text(cleanTitle)
+                .font(.custom("DMSans-Bold", size: 18))
+                .foregroundColor(isUser ? .white : .black)
+                .padding(.bottom, 8)
+            
+        } else if section.contains("📍") {
+            // Search area subtitle - minimal
+            let cleanText = section.replacingOccurrences(of: "📍 Search area: ", with: "")
+            Text(cleanText)
+                .font(.custom("DMSans-Regular", size: 13))
+                .foregroundColor(isUser ? .white.opacity(0.7) : .secondary)
+                .padding(.bottom, 16)
+            
+        } else if section.hasPrefix("**") && (section.contains(". ") || section.contains("**")) && section.contains("🟢") {
+            // Business card - professional design
+            let cleanName = section
+                .replacingOccurrences(of: "**", with: "")
+                .replacingOccurrences(of: " 🟢", with: "")
+            
+            // Extract number and name
+            let parts = cleanName.components(separatedBy: ". ")
+            if parts.count >= 2 {
+                VStack(alignment: .leading, spacing: 0) {
+                    // Business header
+                    HStack(spacing: 12) {
+                        // Number in minimal style
+                        Text(parts[0])
+                            .font(.custom("DMSans-Bold", size: 16))
+                            .foregroundColor(isUser ? .white.opacity(0.6) : .secondary)
+                        
+                        // Business name
+                        Text(parts.dropFirst().joined(separator: ". "))
+                            .font(.custom("DMSans-SemiBold", size: 17))
+                            .foregroundColor(isUser ? .white : .black)
+                        
                         Spacer()
                     }
-                    .padding(.top, 4)
-                } else if section.hasPrefix("**") && section.hasSuffix("**") {
-                    // Other bold text
-                    Text(section.replacingOccurrences(of: "**", with: ""))
-                        .font(.custom("DMSans-SemiBold", size: 16))
-                        .foregroundColor(isUser ? .white : .black)
-                } else if section.hasPrefix("•") {
-                    // Bullet points
-                    HStack(alignment: .top, spacing: 8) {
-                        Text("•")
-                            .font(.custom("DMSans-Regular", size: 16))
-                            .foregroundColor(isUser ? .white.opacity(0.7) : .black.opacity(0.7))
-                        Text(section.dropFirst(1).trimmingCharacters(in: .whitespaces))
-                            .font(.custom("DMSans-Regular", size: 16))
-                            .foregroundColor(isUser ? .white : .black)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                } else if section.hasPrefix("_") && section.hasSuffix("_") {
-                    // Italic context
-                    Text(section.replacingOccurrences(of: "_", with: ""))
-                        .font(.custom("DMSans-Regular", size: 14))
-                        .italic()
-                        .foregroundColor(isUser ? .white.opacity(0.8) : .black.opacity(0.6))
-                } else if !section.isEmpty {
-                    // Regular text
-                    Text(section)
-                        .font(.custom("DMSans-Regular", size: 16))
-                        .foregroundColor(isUser ? .white : .black)
+                    .padding(.bottom, 8)
+                    
+                    // Separator line
+                    Rectangle()
+                        .fill(isUser ? Color.white.opacity(0.2) : Color.gray.opacity(0.3))
+                        .frame(height: 1)
+                        .padding(.bottom, 12)
                 }
+            }
+            
+        } else if section.hasPrefix("• **") {
+            // Detail rows (Rating, Address, etc.)
+            formatDetailRow(section)
+            
+        } else if section.hasPrefix("💡") {
+            // Tips section header
+            let cleanText = section.replacingOccurrences(of: "💡 ", with: "").replacingOccurrences(of: "**", with: "")
+            VStack(alignment: .leading, spacing: 8) {
+                Text(cleanText)
+                    .font(.custom("DMSans-SemiBold", size: 16))
+                    .foregroundColor(isUser ? .white : .primary)
+                    .padding(.top, 16)
+                
+                Rectangle()
+                    .fill(isUser ? Color.white.opacity(0.2) : Color.gray.opacity(0.3))
+                    .frame(height: 1)
+            }
+            
+        } else if section.hasPrefix("•") && !section.hasPrefix("• **") {
+            // Tip bullet points - clean list style
+            HStack(alignment: .top, spacing: 10) {
+                Text("•")
+                    .font(.custom("DMSans-Regular", size: 14))
+                    .foregroundColor(isUser ? .white.opacity(0.5) : .secondary)
+                    .padding(.top, 1)
+                Text(section.dropFirst(1).trimmingCharacters(in: .whitespaces))
+                    .font(.custom("DMSans-Regular", size: 14))
+                    .foregroundColor(isUser ? .white.opacity(0.8) : .secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer()
+            }
+            .padding(.vertical, 1)
+            
+        } else if section.hasPrefix("**") && section.hasSuffix("**") {
+            // Other bold headers
+            Text(section.replacingOccurrences(of: "**", with: ""))
+                .font(.custom("DMSans-Bold", size: 16))
+                .foregroundColor(isUser ? .white : .black)
+                .padding(.vertical, 4)
+                
+        } else if !section.isEmpty {
+            // Regular text
+            Text(section)
+                .font(.custom("DMSans-Regular", size: 15))
+                .foregroundColor(isUser ? .white : .black)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+    
+    @ViewBuilder
+    func formatDetailRow(_ section: String) -> some View {
+        // Parse detail rows like "• **Rating:** ⭐ 4.6/5 (638 reviews)"
+        let content = section.dropFirst(2) // Remove "• "
+        
+        if content.hasPrefix("**Rating:**") {
+            let ratingText = String(content.dropFirst(11)).trimmingCharacters(in: .whitespaces)
+            HStack(spacing: 8) {
+                Text("Rating")
+                    .font(.custom("DMSans-Medium", size: 14))
+                    .foregroundColor(isUser ? .white.opacity(0.7) : .secondary)
+                    .frame(width: 60, alignment: .leading)
+                Text(ratingText)
+                    .font(.custom("DMSans-Regular", size: 14))
+                    .foregroundColor(isUser ? .white : .primary)
+                Spacer()
+            }
+            .padding(.vertical, 2)
+            
+        } else if content.hasPrefix("**Address:**") {
+            HStack(spacing: 8) {
+                Text("Location")
+                    .font(.custom("DMSans-Medium", size: 14))
+                    .foregroundColor(isUser ? .white.opacity(0.7) : .secondary)
+                    .frame(width: 60, alignment: .leading)
+                Button(action: {
+                    print("🗺️ Show on Map button pressed for Address section")
+                    
+                    // Find coordinates specific to this business by looking for the nearest coordinates
+                    // in the context of the current address line
+                    let lines = text.components(separatedBy: "\n")
+                    var foundCoordinates: CLLocationCoordinate2D?
+                    
+                    // Get the current address text to identify which business this is
+                    let currentAddress = String(content.dropFirst(12)).trimmingCharacters(in: .whitespaces)
+                    print("🏢 Looking for coordinates for address: '\(currentAddress)'")
+                    
+                    // Find the business section that contains this address
+                    var businessSectionStart = -1
+                    var businessSectionEnd = -1
+                    
+                    for (index, line) in lines.enumerated() {
+                        if line.contains("**Address:**") && line.contains(currentAddress) {
+                            // Found the address line, now find the business section boundaries
+                            businessSectionStart = index
+                            
+                            // Look backwards to find the business name (starts with **1. or **2. etc)
+                            for backIndex in stride(from: index, through: 0, by: -1) {
+                                if lines[backIndex].hasPrefix("**") && (lines[backIndex].contains(". ") || lines[backIndex].contains("**")) && lines[backIndex].contains("🟢") {
+                                    businessSectionStart = backIndex
+                                    break
+                                }
+                            }
+                            
+                            // Look forwards to find the end (next business or end of text)
+                            for forwardIndex in (index + 1)..<lines.count {
+                                if lines[forwardIndex].hasPrefix("**") && (lines[forwardIndex].contains(". ") || lines[forwardIndex].contains("**")) && lines[forwardIndex].contains("🟢") {
+                                    businessSectionEnd = forwardIndex - 1
+                                    break
+                                }
+                            }
+                            if businessSectionEnd == -1 {
+                                businessSectionEnd = lines.count - 1
+                            }
+                            break
+                        }
+                    }
+                    
+                    print("🎯 Business section: lines \(businessSectionStart) to \(businessSectionEnd)")
+                    
+                    if businessSectionStart >= 0 && businessSectionEnd >= businessSectionStart {
+                        // Search for coordinates only within this business section
+                        for lineIndex in businessSectionStart...businessSectionEnd {
+                            let line = lines[lineIndex]
+                            
+                            if line.contains("Maps:") {
+                                print("🎯 Found Maps coordinate line in business section: '\(line)'")
+                                
+                                if let colonIndex = line.firstIndex(of: ":") {
+                                    let coordText = String(line[line.index(after: colonIndex)...])
+                                        .trimmingCharacters(in: .whitespaces)
+                                        .replacingOccurrences(of: "**", with: "")
+                                        .trimmingCharacters(in: .whitespaces)
+                                    print("📍 Business-specific coordinates: '\(coordText)'")
+                                    
+                                    let coords = coordText.components(separatedBy: ",")
+                                    if coords.count == 2,
+                                       let lat = Double(coords[0].trimmingCharacters(in: .whitespaces)),
+                                       let lng = Double(coords[1].trimmingCharacters(in: .whitespaces)) {
+                                        foundCoordinates = CLLocationCoordinate2D(latitude: lat, longitude: lng)
+                                        print("✅ Successfully parsed business coordinates: \(lat), \(lng)")
+                                        break
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    if let coordinates = foundCoordinates {
+                        print("🏪 Using coordinates for this specific business: \(coordinates.latitude), \(coordinates.longitude)")
+                        
+                        // Switch to Map tab
+                        selectedTab = 0
+                        
+                        // Send notification to show pin at the exact coordinates from backend
+                        NotificationCenter.default.post(name: .showPinAtLocation, object: coordinates)
+                        
+                        print("🎉 Switched to Map tab and showing pin at business-specific coordinates!")
+                    } else {
+                        print("❌ No coordinates found for this specific business")
+                    }
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "map.fill")
+                            .font(.system(size: 12))
+                        Text("Show on Map")
+                    }
+                    .font(.custom("DMSans-Medium", size: 14))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.blue)
+                    .cornerRadius(16)
+                }
+                Spacer()
+            }
+            .padding(.vertical, 2)
+            
+        } else if content.hasPrefix("**Status:**") {
+            let statusText = String(content.dropFirst(11)).trimmingCharacters(in: .whitespaces)
+            HStack(spacing: 8) {
+                Text("Status")
+                    .font(.custom("DMSans-Medium", size: 14))
+                    .foregroundColor(isUser ? .white.opacity(0.7) : .secondary)
+                    .frame(width: 60, alignment: .leading)
+                Text(statusText)
+                    .font(.custom("DMSans-Medium", size: 14))
+                    .foregroundColor(statusText.contains("Open") ? .green : .orange)
+                Spacer()
+            }
+            .padding(.vertical, 2)
+            
+        } else if content.hasPrefix("**Website:**") {
+            let websiteText = String(content.dropFirst(12)).trimmingCharacters(in: .whitespaces)
+            HStack(spacing: 8) {
+                Text("Website")
+                    .font(.custom("DMSans-Medium", size: 14))
+                    .foregroundColor(isUser ? .white.opacity(0.7) : .secondary)
+                    .frame(width: 60, alignment: .leading)
+                Button(action: {
+                    if let url = URL(string: websiteText) {
+                        UIApplication.shared.open(url)
+                    }
+                }) {
+                    Text(websiteText)
+                        .font(.custom("DMSans-Regular", size: 14))
+                        .foregroundColor(.blue)
+                        .underline()
+                        .multilineTextAlignment(.leading)
+                }
+                Spacer()
+            }
+            .padding(.vertical, 2)
+            
+        } else if content.hasPrefix("**Phone:**") {
+            let phoneText = String(content.dropFirst(10)).trimmingCharacters(in: .whitespaces)
+            HStack(spacing: 8) {
+                Text("Phone")
+                    .font(.custom("DMSans-Medium", size: 14))
+                    .foregroundColor(isUser ? .white.opacity(0.7) : .secondary)
+                    .frame(width: 60, alignment: .leading)
+                Button(action: {
+                    let cleanPhone = phoneText.replacingOccurrences(of: " ", with: "").replacingOccurrences(of: "(", with: "").replacingOccurrences(of: ")", with: "").replacingOccurrences(of: "-", with: "")
+                    if let url = URL(string: "tel:\(cleanPhone)") {
+                        UIApplication.shared.open(url)
+                    }
+                }) {
+                    Text(phoneText)
+                        .font(.custom("DMSans-Regular", size: 14))
+                        .foregroundColor(.blue)
+                        .underline()
+                }
+                Spacer()
+            }
+            .padding(.vertical, 2)
+            
+        } else if content.hasPrefix("**Coordinates:**") {
+            // Hide coordinates from user - they're only for internal map integration
+            EmptyView()
+            
+        } else if content.hasPrefix("**Google Maps:**") {
+            // Hide old Google Maps entries completely
+            EmptyView()
+            
+        } else if content.hasPrefix("**Maps:**") {
+            let coordinatesText = String(content.dropFirst(9)).trimmingCharacters(in: .whitespaces)
+            HStack(spacing: 8) {
+                Text("Maps")
+                    .font(.custom("DMSans-Medium", size: 14))
+                    .foregroundColor(isUser ? .white.opacity(0.7) : .secondary)
+                    .frame(width: 60, alignment: .leading)
+                Button(action: {
+                    // Parse coordinates and show in-app map
+                    let coords = coordinatesText.components(separatedBy: ",")
+                    if coords.count == 2,
+                       let lat = Double(coords[0].trimmingCharacters(in: .whitespaces)),
+                       let lng = Double(coords[1].trimmingCharacters(in: .whitespaces)) {
+                        
+                        // Extract business info from the current text context
+                        // This is a simplified approach - in production you might want to pass this data differently
+                        let businessInfo = extractBusinessInfo(from: text, coordinates: CLLocationCoordinate2D(latitude: lat, longitude: lng))
+                        selectedBusiness = businessInfo
+                        showGearRentalMap = true
+                    }
+                }) {
+                    Text("View on Map")
+                        .font(.custom("DMSans-Regular", size: 14))
+                        .foregroundColor(.blue)
+                        .underline()
+                }
+                Spacer()
+            }
+            .padding(.vertical, 2)
+            
+        } else {
+            // Fallback for other detail rows
+            HStack(alignment: .top, spacing: 8) {
+                Text("•")
+                    .font(.custom("DMSans-Regular", size: 14))
+                    .foregroundColor(isUser ? .white.opacity(0.6) : .gray)
+                    .padding(.top, 2)
+                Text(String(content))
+                    .font(.custom("DMSans-Regular", size: 14))
+                    .foregroundColor(isUser ? .white.opacity(0.8) : .secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
@@ -598,6 +912,63 @@ struct FormattedTextView: View {
         // Split by newlines but keep the structure
         return text.components(separatedBy: "\n").filter { !$0.isEmpty }
     }
+    
+    func extractBusinessInfo(from text: String, coordinates: CLLocationCoordinate2D) -> GearRentalBusiness {
+        let lines = text.components(separatedBy: "\n")
+        var businessName = "Business"
+        var address = "Address not available"
+        var website: String? = nil
+        var phone: String? = nil
+        var rating: String? = nil
+        
+        for line in lines {
+            if line.contains("**") && (line.contains(". ") || line.contains("**")) && line.contains("🟢") {
+                // Extract business name
+                let cleanName = line
+                    .replacingOccurrences(of: "**", with: "")
+                    .replacingOccurrences(of: " 🟢", with: "")
+                let parts = cleanName.components(separatedBy: ". ")
+                if parts.count >= 2 {
+                    businessName = parts.dropFirst().joined(separator: ". ")
+                }
+            } else if line.contains("**Address:**") {
+                address = String(line.dropFirst(line.firstIndex(of: ":") != nil ? line.distance(from: line.startIndex, to: line.firstIndex(of: ":")!) + 1 : 0))
+                    .trimmingCharacters(in: .whitespaces)
+                    .replacingOccurrences(of: "**Address:** ", with: "")
+            } else if line.contains("**Website:**") {
+                website = String(line.dropFirst(line.firstIndex(of: ":") != nil ? line.distance(from: line.startIndex, to: line.firstIndex(of: ":")!) + 1 : 0))
+                    .trimmingCharacters(in: .whitespaces)
+                    .replacingOccurrences(of: "**Website:** ", with: "")
+            } else if line.contains("**Phone:**") {
+                phone = String(line.dropFirst(line.firstIndex(of: ":") != nil ? line.distance(from: line.startIndex, to: line.firstIndex(of: ":")!) + 1 : 0))
+                    .trimmingCharacters(in: .whitespaces)
+                    .replacingOccurrences(of: "**Phone:** ", with: "")
+            } else if line.contains("**Rating:**") {
+                rating = String(line.dropFirst(line.firstIndex(of: ":") != nil ? line.distance(from: line.startIndex, to: line.firstIndex(of: ":")!) + 1 : 0))
+                    .trimmingCharacters(in: .whitespaces)
+                    .replacingOccurrences(of: "**Rating:** ", with: "")
+            }
+        }
+        
+        return GearRentalBusiness(
+            name: businessName,
+            address: address,
+            coordinate: coordinates,
+            website: website,
+            phone: phone,
+            rating: rating
+        )
+    }
+}
+
+// MARK: - Supporting Data Structures
+struct GearRentalBusiness {
+    let name: String
+    let address: String
+    let coordinate: CLLocationCoordinate2D
+    let website: String?
+    let phone: String?
+    let rating: String?
 }
 
 //#Preview{

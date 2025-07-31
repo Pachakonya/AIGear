@@ -15,6 +15,7 @@ final class MapViewModel: ObservableObject {
     @Published var selectedLocation: CLLocationCoordinate2D?
     @Published var showRouteConfirmation: Bool = false
     @Published var hasBuiltRoute: Bool = false
+    @Published var isGearRentalRoute: Bool = false
 
     private let locationService = LocationService()
     private var cancellables = Set<AnyCancellable>()
@@ -150,15 +151,17 @@ final class MapViewModel: ObservableObject {
     }
     
     // Route confirmation methods
-    func showRouteConfirmationDialog(for coordinate: CLLocationCoordinate2D) {
+    func showRouteConfirmationDialog(for coordinate: CLLocationCoordinate2D, isGearRental: Bool = false) {
         selectedLocation = coordinate
         showRouteConfirmation = true
+        isGearRentalRoute = isGearRental
     }
     
     func cancelRouteSelection() {
         selectedLocation = nil
         showRouteConfirmation = false
         hasBuiltRoute = false
+        isGearRentalRoute = false
     }
     
     func confirmRouteBuilding() {

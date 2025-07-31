@@ -18,7 +18,7 @@ struct MainTabView: View {
                     }
                     .tag(0)
 
-                ChatbotView()
+                ChatbotView(selectedTab: $selectedTab)
                     .tabItem {
                         // Empty label, we'll overlay a custom button
                         Text("")

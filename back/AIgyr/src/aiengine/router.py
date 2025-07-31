@@ -619,9 +619,17 @@ I can help you find nearby gear rental shops! Please either:
         if price_level is not None:
             price_indicator = " • " + "💰" * price_level if price_level > 0 else " • Budget-friendly"
         
+        # Get coordinates for map integration
+        location = place.get("geometry", {}).get("location", {})
+        place_lat = location.get("lat", 0)
+        place_lng = location.get("lng", 0)
+        
         result_sections.append(f"**{i}. {name}** {status_indicator}")
         result_sections.append(f"• **Rating:** ⭐ {rating}/5 ({user_ratings_total} reviews)")
         result_sections.append(f"• **Address:** {vicinity}{price_indicator}")
+        
+        # Add coordinates for map integration (hidden from user but available for parsing)
+        result_sections.append(f"• **Coordinates:** {place_lat},{place_lng}")
         
         # Add opening hours if available
         if place.get("opening_hours"):
@@ -638,7 +646,7 @@ I can help you find nearby gear rental shops! Please either:
                 details_url = "https://maps.googleapis.com/maps/api/place/details/json"
                 details_params = {
                     "place_id": place_id,
-                    "fields": "website,formatted_phone_number,url",
+                    "fields": "website,formatted_phone_number",
                     "key": api_key
                 }
                 details_response = requests.get(details_url, params=details_params, timeout=10)
@@ -654,14 +662,13 @@ I can help you find nearby gear rental shops! Please either:
                     # Add phone if available
                     if details.get("formatted_phone_number"):
                         result_sections.append(f"• **Phone:** {details['formatted_phone_number']}")
-                    
-                    # Add Google Maps link
-                    if details.get("url"):
-                        result_sections.append(f"• **Google Maps:** {details['url']}")
                         
             except (requests.RequestException, KeyError, ValueError):
                 # If details request fails, continue without additional info
                 pass
+        
+        # Always add in-app map coordinates (outside the details block)
+        result_sections.append(f"• **Maps:** {place_lat},{place_lng}")
         
         result_sections.append("")
     
