@@ -129,7 +129,7 @@ If running on a physical device, set `baseURL` to your machine’s LAN IP, e.g. 
 
 ## Demo
 
-[![Demo Video](https://img.youtube.com/vi/MqHkAb94EFc/0.jpg)](https://youtube.com/shorts/MqHkAb94EFc?feature=share)
+[![Demo Video](https://youtube.com/shorts/cvGSj4qQYmc/0.jpg)](https://youtube.com/shorts/cvGSj4qQYmc?feature=share)
 
 *Click the image above to watch the demo video*
 
