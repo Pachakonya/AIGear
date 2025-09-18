@@ -127,15 +127,11 @@ If running on a physical device, set `baseURL` to your machine’s LAN IP, e.g. 
 2. Select a simulator or your device
 3. Build and run
 
-### Demo
-- Replace the link below with your video URL (YouTube, Loom, etc.).
-- Optionally replace the thumbnail image.
+## Demo
 
-[Watch the demo](https://your-demo-link-here)
+[![Demo Video](https://img.youtube.com/vi/MqHkAb94EFc/0.jpg)](https://youtube.com/shorts/MqHkAb94EFc?feature=share)
 
-<a href="https://your-demo-link-here" target="_blank">
-  <img src="https://img.youtube.com/vi/VIDEO_ID/0.jpg" alt="GearAI Demo" width="600" />
-</a>
+*Click the image above to watch the demo video*
 
 ### Features
 - Email/password sign up and login, email verification flow
